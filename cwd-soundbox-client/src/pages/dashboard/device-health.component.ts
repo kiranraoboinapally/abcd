@@ -1,20 +1,15 @@
 import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgChartsModule } from 'ng2-charts';
-import {
-  Chart,
-  LineElement,
-  PointElement,
-  LinearScale,
-  TimeScale,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import 'chartjs-adapter-date-fns';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { environment } from '../../../src/environments/environment';
+import { HighchartsChartModule } from 'highcharts-angular';
+import * as Highcharts from 'highcharts';
+import HighchartsMore from 'highcharts/highcharts-more';
+import HC_exporting from 'highcharts/modules/exporting';
 
-Chart.register(LineElement, PointElement, LinearScale, TimeScale, Tooltip, Legend);
+// Initialize additional modules
+HighchartsMore(Highcharts);
+HC_exporting(Highcharts);
 
 interface DeviceHealth {
   block: number;
@@ -30,18 +25,16 @@ interface DeviceHealth {
 @Component({
   selector: 'app-device-health',
   standalone: true,
-  imports: [CommonModule, NgChartsModule, HttpClientModule],
+  imports: [CommonModule, HttpClientModule,HighchartsChartModule],
   template: `
     <div class="device-health-wrapper">
-      <!-- Left: Line Chart -->
+      <!-- Left: Highcharts Line Chart -->
       <div class="chart-box">
-        <canvas
-          baseChart
-          [data]="lineChartData()"
-          [type]="lineChartType"
-          [options]="lineChartOptions"
-        >
-        </canvas>
+        <highcharts-chart 
+          [Highcharts]="Highcharts"
+          [options]="chartOptions()"
+          style="width: 100%; height: 500px; display: block;"
+        ></highcharts-chart>
       </div>
 
       <!-- Right: Table -->
@@ -96,6 +89,89 @@ interface DeviceHealth {
   `,
   styles: [
     `
+      .chart-box {
+        flex: 0 0 600px;
+        height: 500px;
+        padding: 1rem;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      }
+
+      .table-box {
+        flex: 1;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        overflow-x: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .device-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Nunito Sans', sans-serif;
+        font-size: 14px;
+      }
+
+      .device-table th,
+      .device-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .device-table th {
+        background-color: #e8e8e8;
+        font-weight: 700;
+        color: #333;
+      }
+
+      .device-table tr:hover {
+        background-color: #f0f0f0;
+      }
+
+      .pagination-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-top: 1px solid #ddd;
+      }
+
+      .page-info {
+        font-size: 14px;
+        color: #666;
+      }
+
+      .page-buttons {
+        display: flex;
+        gap: 8px;
+      }
+
+      .page-btn {
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        border-radius: 4px;
+        font-family: 'Nunito Sans', sans-serif;
+        font-size: 14px;
+        transition: background-color 0.3s ease;
+      }
+
+      .page-btn:hover:not([disabled]) {
+        background-color: #e0e0e0;
+      }
+
+      .page-btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+
+      /* keep your existing styles unchanged */
       .device-health-wrapper {
         display: flex;
         gap: 1rem;
@@ -195,6 +271,8 @@ export class DeviceHealthComponent implements OnInit {
   private perPage = 10;
   currentPage = signal(1);
 
+  Highcharts: typeof Highcharts = Highcharts;
+
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
@@ -230,71 +308,46 @@ export class DeviceHealthComponent implements OnInit {
 
   endItem = computed(() => Math.min(this.currentPage() * this.perPage, this.totalItems()));
 
-  // LINE CHART SETTINGS
-  lineChartType: any = 'line';
-
-  lineChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => {
-            const datasetIndex = ctx.datasetIndex;
-            const raw = this.data();
-            const record = raw[datasetIndex];
-            const batteryLevel = ctx.parsed.y;
-            const time = new Date(ctx.parsed.x).toLocaleString();
-
-            return [
-              `Block: ${record.block}`,
-              `Device ID: ${record.device_id}`,
-              `Battery Level: ${batteryLevel}%`,
-              `Time: ${time}`,
-            ];
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        type: 'time',
-        time: {
-          tooltipFormat: 'PPpp',
-          unit: 'minute',
-          displayFormats: {
-            minute: 'HH:mm',
-            hour: 'HH:mm',
-          },
-        },
-        title: {
-          display: true,
-          text: 'Time',
-        },
-        ticks: {
-          maxRotation: 45,
-          minRotation: 45,
-        },
-      },
-      y: {
-        title: {
-          display: true,
-          text: 'Battery Level (%)',
-        },
-        min: 0,
-        max: 100,
-      },
-    },
-  };
-
-  lineChartData = computed(() => {
+  // Highcharts options computed from data
+  chartOptions = computed(() => {
     const raw = this.data();
 
     return {
-      datasets: raw.map((item, idx) => {
+      chart: {
+        type: 'line',
+        height: 500,
+      },
+      title: {
+        text: 'Device Health Battery Levels Over Time',
+      },
+      xAxis: {
+        type: 'datetime',
+        title: {
+          text: 'Time',
+        },
+      },
+      yAxis: {
+        min: 0,
+        max: 100,
+        title: {
+          text: 'Battery Level (%)',
+        },
+      },
+      tooltip: {
+        shared: true,
+        formatter: function () {
+          // `this` here is the tooltip context with points array
+let s = `<b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x as number)}</b><br/>`;
+          this.points?.forEach((point) => {
+            s += `${point.series.name}: <b>${point.y}%</b><br/>`;
+          });
+          return s;
+        },
+      },
+      legend: {
+        enabled: false,
+      },
+      series: raw.map((item, idx) => {
         const startTimestamp = new Date(item.start_time).getTime();
         const endTimestamp = new Date(item.end_time).getTime();
 
@@ -304,23 +357,23 @@ export class DeviceHealthComponent implements OnInit {
         const lineColor = endLevel < startLevel ? '#E83B2D' : '#2DA74E';
 
         return {
-          label: `Record ${idx + 1} Device ${item.device_id}`,
+          name: `Record ${idx + 1} Device ${item.device_id}`,
           data: [
-            { x: startTimestamp, y: startLevel },
-            { x: endTimestamp, y: endLevel },
+            [startTimestamp, startLevel],
+            [endTimestamp, endLevel],
           ],
-          fill: false,
-          borderColor: lineColor, // line color red or green
-          backgroundColor: lineColor, // line background color (not for points)
-          pointRadius: 1,
-          //pointBackgroundColor: '#1D1D1D', // black fill for points
-          pointBorderColor: '#1D1D1D', // black border for points
-          borderWidth: 2,
-          tension: 0.2,
-          showLine: true,
-          spanGaps: true,
+          color: lineColor,
+          lineWidth: 2,
+          marker: {
+            enabled: true,
+            radius: 3,
+            lineColor: '#1D1D1D',
+            lineWidth: 1,
+          },
+          connectNulls: true,
+          type: 'line',
         };
       }),
-    };
+    } as Highcharts.Options;
   });
 }
