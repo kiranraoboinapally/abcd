@@ -127,22 +127,22 @@ CREATE TABLE anomaly_results (
 
 
 
--- CREATE TABLE battery_health (
---     block                INTEGER NOT NULL,
---     device_id             INTEGER NOT NULL,
---     CS                   INTEGER, -- 1 = charging, 2 = discharging
---     start_time           TIMESTAMP ,
---     end_time             TIMESTAMP ,
---     start_BL             DOUBLE PRECISION ,
---     end_BL               DOUBLE PRECISION ,
---     n_rows               INTEGER ,
---     delta_BL             DOUBLE PRECISION ,
---     delta_minutes        DOUBLE PRECISION ,
---     avg_rate             DOUBLE PRECISION,
---     is_anomaly           INTEGER , -- 0 = normal, 1 = anomaly
---     anomaly_reason       TEXT NOT NULL,
---     PRIMARY KEY (block, device_id)
--- );
+ CREATE TABLE battery_health (
+     block                INTEGER NOT NULL,
+     device_id             INTEGER NOT NULL,
+     CS                   INTEGER, -- 1 = charging, 2 = discharging
+     start_time           TIMESTAMP ,
+     end_time             TIMESTAMP ,
+     start_BL             DOUBLE PRECISION ,
+     end_BL               DOUBLE PRECISION ,
+     n_rows               INTEGER ,
+     delta_BL             DOUBLE PRECISION ,
+     delta_minutes        DOUBLE PRECISION ,
+     avg_rate             DOUBLE PRECISION,
+     is_anomaly           INTEGER , -- 0 = normal, 1 = anomaly
+     anomaly_reason       TEXT NOT NULL,
+     PRIMARY KEY (block, device_id)
+ );
 
 
 
