@@ -1,5 +1,3 @@
-
-
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -23,14 +21,16 @@ import { map } from 'rxjs/operators';
     DeviceHealthComponent,
     HttpClientModule
   ],
-  template: `
-    <div class="dashboard-header" aria-label="Dashboard Header">
-      Intelligent Metrics & Analytics <span class="highlight">(Dashboard)</span>
+  template:  `
+    <div class="absolute top-[103px] left-[250px] font-nunito font-medium text-[18px] leading-[33px] text-[#1D1D1D] select-none z-10">
+      Intelligent Metrics & Analytics <span class="text-redCustom font-semibold ml-1">(Dashboard)</span>
     </div>
 
-    <div class="ml-subtitle">ML Analysis Results</div>
+    <div class="absolute top-[138px] left-[250px] font-nunito text-sm text-[#414454] select-none z-10">
+      ML Analysis Results
+    </div>
 
-    <div class="tab-headers" role="tablist" aria-label="Dashboard Tabs">
+    <div class="absolute top-[170px] left-[250px] flex gap-4 select-none z-10" role="tablist" aria-label="Dashboard Tabs">
       <app-tab-button
         *ngFor="let tab of tabs"
         [label]="tab.label"
@@ -43,95 +43,133 @@ import { map } from 'rxjs/operators';
       ></app-tab-button>
     </div>
 
-    <div class="tab-tools">
-      <div class="search-wrapper">
-        <img src="assets/icons/6.svg" alt="Search" class="search-icon" />
+    <div class="absolute top-[170px] right-[50px] flex items-center gap-4 select-none z-10">
+      <div class="relative w-[298px] h-10">
+        <img src="assets/icons/6.svg" alt="Search" class="absolute top-1/2 left-3 transform -translate-y-1/2 w-[19px] h-[19px] pointer-events-none filter grayscale brightness-80" />
         <input
           type="text"
-          placeholder="Search Transactions..."
-          class="search-bar"
-          aria-label="Search Transactions"
-          [ngModel]="searchTerm()"
-          (ngModelChange)="searchTerm.set($event)"
+          class="w-full h-full pl-[40px] pr-3 rounded-full border border-gray-300 text-[#414454] text-base font-nunito placeholder-[#908F8F] focus:outline-none focus:border-redCustom focus:ring-2 focus:ring-redCustom/20"
+          [placeholder]="activeTab() === 'Transactions Anomaly' ? 'Search Transactions...' : 'Search Device Health...'"
+          [attr.aria-label]="activeTab() === 'Transactions Anomaly' ? 'Search Transactions' : 'Search Device Health'"
+          [ngModel]="activeTab() === 'Transactions Anomaly' ? searchTerm() : deviceHealthSearchTerm()"
+          (ngModelChange)="
+            activeTab() === 'Transactions Anomaly'
+              ? searchTerm.set($event)
+              : deviceHealthSearchTerm.set($event)
+          "
         />
       </div>
+
       <button
-        class="more-options"
+        class="flex items-center p-2 rounded-md hover:bg-redCustom/20 focus:outline-none transition"
         aria-label="Toggle More Options Panel"
         [attr.aria-expanded]="showMoreOptions()"
         (click)="onMoreOptions()"
       >
-        <img src="assets/icons/7.svg" alt="More options" />
+        <img src="assets/icons/7.svg" alt="More options" class="w-6 h-6" />
       </button>
     </div>
 
-    <div
-      class="more-options-panel"
-      *ngIf="showMoreOptions()"
-      role="region"
-      aria-live="polite"
-      [attr.aria-expanded]="showMoreOptions()"
-    >
-      <img src="assets/icons/12.svg" alt="Filter" class="funnel-icon" />
+    <div *ngIf="showMoreOptions()" class="absolute left-[243px] top-[233px] w-[1580px] h-[60px] bg-white border border-[#DBE5EA] shadow-sm rounded-xl flex items-center gap-4 px-4 z-20 animate-fade-in-height" role="region" aria-live="polite" [attr.aria-expanded]="showMoreOptions()">
+      <img src="assets/icons/12.svg" alt="Filter" class="w-[17px] h-[18px] mr-2" />
 
-      <div class="dropdown time-dropdown">
-        <select
-          [ngModel]="selectedTimeFilter()"
-          (ngModelChange)="selectedTimeFilter.set($event)"
-          aria-label="Time Filter"
-          class="time-select"
-          style="background-image: url('assets/icons/13.svg');"
-        >
-          <option value="">Time</option>
-          <option value="1h">1 Hour</option>
-          <option value="6h">6 Hours</option>
-          <option value="12h">12 Hours</option>
-          <option value="1d">1 Day</option>
-          <option value="1w">1 Week</option>
-          <option value="1m">1 Month</option>
-          <option value="3m">3 Months</option>
-        </select>
-      </div>
+      <ng-container *ngIf="activeTab() === 'Transactions Anomaly'">
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[83px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedTimeFilter()"
+            (ngModelChange)="selectedTimeFilter.set($event)"
+            aria-label="Time Filter"
+          >
+            <option value="">Time</option>
+            <option value="1h">1 Hour</option>
+            <option value="6h">6 Hours</option>
+            <option value="12h">12 Hours</option>
+            <option value="1d">1 Day</option>
+            <option value="1w">1 Week</option>
+            <option value="1m">1 Month</option>
+            <option value="3m">3 Months</option>
+          </select>
+        </div>
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedMlOutput()"
+            (ngModelChange)="selectedMlOutput.set($event)"
+            aria-label="ML Output Filter"
+          >
+            <option value="">All ML Output</option>
+            <option value="Review Required">Review Required</option>
+            <option value="Anomaly Detected">Anomaly Detected</option>
+          </select>
+        </div>
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedDeviceID()"
+            (ngModelChange)="selectedDeviceID.set($event)"
+            aria-label="Device ID Filter"
+          >
+            <option value="">All Devices</option>
+            <option *ngFor="let device of deviceIDs()" [value]="device">
+              {{ device }}
+            </option>
+          </select>
+        </div>
+      </ng-container>
 
-      <div class="dropdown ml-dropdown">
-        <select
-          [ngModel]="selectedMlOutput()"
-          (ngModelChange)="selectedMlOutput.set($event)"
-          aria-label="ML Output Filter"
-          class="ml-select"
-          [ngStyle]="{ 'background-image': 'url(assets/icons/13.svg)' }"
-        >
-          <option value="">All ML Output</option>
-          <option value="Review Required">Review Required</option>
-          <option value="Anomaly Detected">Anomaly Detected</option>
-        </select>
-      </div>
+      <ng-container *ngIf="activeTab() === 'Device Health'">
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedDeviceID()"
+            (ngModelChange)="selectedDeviceID.set($event)"
+            aria-label="Device ID Filter"
+          >
+            <option value="">All Devices</option>
+            <option *ngFor="let device of deviceIDs()" [value]="device">
+              {{ device }}
+            </option>
+          </select>
+        </div>
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedChargingStatus()"
+            (ngModelChange)="selectedChargingStatus.set($event)"
+            aria-label="Charging Status Filter"
+          >
+            <option value="">Charging Status</option>
+            <option value="Charging">Charging</option>
+            <option value="Discharging">Discharging</option>
+          </select>
+        </div>
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedDeviceHealthStatus()"
+            (ngModelChange)="selectedDeviceHealthStatus.set($event)"
+            aria-label="Device Health Status Filter"
+          >
+            <option value="">Status</option>
+            <option value="Anomaly">Anomaly</option>
+            <option value="Normal">Normal</option>
+          </select>
+        </div>
+      </ng-container>
 
-      <div class="dropdown device-dropdown">
-        <select
-          [ngModel]="selectedDeviceID()"
-          (ngModelChange)="selectedDeviceID.set($event)"
-          aria-label="Device ID Filter"
-          class="device-select"
-          [ngStyle]="{ 'background-image': 'url(assets/icons/13.svg)' }"
-        >
-          <option value="">All Devices</option>
-          <option *ngFor="let device of deviceIDs()" [value]="device">
-            {{ device }}
-          </option>
-        </select>
-      </div>
-
-      <button class="btn export-btn updated-export">
-        <img src="assets/icons/14.svg" alt="Export Icon" class="export-icon" />
+      <button class="ml-auto bg-redCustom text-white text-sm font-normal rounded-md py-2 px-4 flex items-center gap-2 hover:bg-redCustom/90 transition">
+        <img src="assets/icons/14.svg" alt="Export Icon" class="w-4 h-4" />
         Export
       </button>
     </div>
 
-    <div class="tab-content" [class.shifted]="showMoreOptions()">
+    <div [ngClass]="{ 'absolute left-[250px] w-[calc(100%-300px)] z-10 transition-all duration-300': true, 
+                       'top-[330px]': showMoreOptions(), 
+                       'top-[260px]': !showMoreOptions() }" class="font-nunito text-[#1D1D1D]">
       <ng-container [ngSwitch]="activeTab()">
         <div *ngSwitchCase="'Transactions Anomaly'">
-          <div class="cards-container" role="list">
+          <div class="flex gap-2 overflow-x-auto pb-2 select-none">
             <app-transaction-card
               *ngFor="let card of transactionCards()"
               [heading]="card.heading"
@@ -142,21 +180,19 @@ import { map } from 'rxjs/operators';
               role="listitem"
             ></app-transaction-card>
           </div>
-
-          <div style="margin-top: 16px;">
+          <div class="mt-4">
             <app-fraud-results-table
               [mlFilter]="selectedMlOutput()"
               [timeFilter]="selectedTimeFilter()"
               [searchTerm]="searchTerm()"
               [deviceFilter]="selectedDeviceID()"
               (statsChanged)="onStatsChanged($event)"
-            >
-            </app-fraud-results-table>
+            ></app-fraud-results-table>
           </div>
         </div>
 
         <div *ngSwitchCase="'Device Health'">
-          <div class="cards-container" role="list">
+          <div class="flex gap-2 overflow-x-auto pb-2 select-none">
             <app-transaction-card
               *ngFor="let card of deviceHealthCards"
               [heading]="card.heading"
@@ -167,320 +203,21 @@ import { map } from 'rxjs/operators';
               role="listitem"
             ></app-transaction-card>
           </div>
-          <app-device-health></app-device-health>
+          <app-device-health
+            [searchTerm]="deviceHealthSearchTerm()"
+            [deviceFilter]="selectedDeviceID()"
+            [chargingStatusFilter]="selectedChargingStatus()"
+            [statusFilter]="selectedDeviceHealthStatus()"
+          ></app-device-health>
         </div>
 
-        <div *ngSwitchCase="'Merchant Performance'">Merchant performance data displayed here.</div>
-        <div *ngSwitchCase="'Merchant Churn'">Churn predictions for merchants shown here.</div>
-        <div *ngSwitchCase="'Merchant LTV'">Merchant Lifetime Value analysis goes here.</div>
-        <div *ngSwitchDefault>Select a tab to view content.</div>
+        <div *ngSwitchDefault>
+          Select a tab to view content.
+        </div>
       </ng-container>
     </div>
-  `,
-  styles: [
-
-
-
-`
-    .dashboard-header {
-      position: absolute;
-      top: 103px;
-      left: 250px;
-      font-family: 'Nunito Sans', sans-serif;
-      font-weight: 500;
-      font-size: 18px;
-      line-height: 33px;
-      color: #1D1D1D;
-      text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-      user-select: none;
-      z-index: 10;
-    }
-
-    .highlight {
-      color: #C1212F;
-      margin-left: 5px;
-      font-weight: 600;
-    }
-
-    .ml-subtitle {
-      position: absolute;
-      top: 138px;
-      left: 250px;
-      font-family: 'Nunito Sans', sans-serif;
-      font-weight: 400;
-      font-size: 12px;
-      color: #414454;
-      user-select: none;
-      z-index: 5;
-    }
-
-    .tab-headers {
-      position: absolute;
-      top: 170px;
-      left: 250px;
-      display: flex;
-      gap: 16px;
-      user-select: none;
-      z-index: 5;
-    }
-
-    .tab-tools {
-      position: absolute;
-      top: 170px;
-      right: 50px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      user-select: none;
-      z-index: 5;
-    }
-
-    .search-wrapper {
-      position: relative;
-      width: 298px;
-      height: 40px;
-    }
-
-    .search-bar {
-      width: 100%;
-      height: 100%;
-      padding: 0 12px 0 40px;
-      border-radius: 30px;
-      border: 1px solid #ccc;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 16px;
-      color: #414454;
-      outline: none;
-      box-sizing: border-box;
-    }
-
-    .search-bar::placeholder {
-      font-weight: 400;
-      font-size: 14px;
-      color: #908F8F;
-    }
-
-    .search-bar:focus {
-      border-color: #C1212F;
-      box-shadow: 0 0 0 2px rgba(193, 33, 47, 0.2);
-    }
-
-    .search-icon {
-      position: absolute;
-      top: 50%;
-      left: 14px;
-      transform: translateY(-50%);
-      width: 19px;
-      height: 19px;
-      pointer-events: none;
-      user-select: none;
-      filter: grayscale(100%) brightness(80%);
-    }
-
-    .more-options {
-      background: none;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      padding: 0;
-      user-select: none;
-      transition: background-color 0.2s ease;
-      border-radius: 6px;
-    }
-
-    .more-options:hover,
-    .more-options:focus {
-      outline: none;
-      background-color: rgba(193, 33, 47, 0.1);
-    }
-
-    .more-options img {
-      width: 24px;
-      height: 24px;
-      user-select: none;
-    }
-
-    .more-options-panel {
-      position: absolute;
-      width: 1580px;
-      height: 60px;
-      left: 243px;
-      top: 233px;
-      background: #FFFFFF;
-      border: 1px solid #DBE5EA;
-      box-shadow: 0px 2px 4px -2px rgba(0, 0, 0, 0.16);
-      border-radius: 15px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 0 10px;
-      z-index: 7;
-      animation: fadeInHeight 0.25s ease forwards;
-    }
-
-    .funnel-icon {
-      width: 17px;
-      height: 18px;
-      margin-right: 10px;
-    }
-
-    .dropdown {
-      display: flex;
-      align-items: center;
-      height: 40px;
-      background-color: #F5F7FA;
-      border-radius: 15px;
-      padding: 0 12px;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 14px;
-      color: #414454;
-      position: relative;
-      cursor: pointer;
-    }
-
-    .time-dropdown {
-      width: 83px;
-    }
-
-    .time-dropdown .dropdown-label {
-      width: 41px;
-      height: 25px;
-      line-height: 25px;
-    }
-
-    .ml-dropdown {
-      width: 180px;
-    }
-
-    .ml-dropdown .dropdown-label {
-      width: 116px;
-      height: 25px;
-      line-height: 25px;
-    }
-
-    .dropdown-icon {
-      width: 12px;
-      height: 8px;
-      margin-left: 6px;
-    }
-
-    .btn.export-btn.updated-export {
-      background-color: #C1212F;
-      color: white;
-      border: none;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 14px;
-      font-weight: 400;
-      border-radius: 5px;
-      padding: 10px 10px 10px 10px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: background-color 0.25s ease;
-      margin-left: auto;
-    }
-
-    .btn.export-btn.updated-export:hover,
-    .btn.export-btn.updated-export:focus {
-      background-color: #A21827;
-    }
-
-    .export-icon {
-      width: 16px;
-      height: 16px;
-    }
-
-    .tab-content {
-      position: absolute;
-      top: 260px;
-      left: 250px;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 14px;
-      color: #1D1D1D;
-      width: calc(100% - 300px);
-      transition: top 0.3s ease;
-      user-select: text;
-      z-index: 5;
-    }
-    .time-select {
-      appearance: none;
-      background: transparent;
-      border: none;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 14px;
-      color: #414454;
-      padding: 0 24px 0 0;
-      background-repeat: no-repeat;
-      background-position: right 8px center;
-      background-size: 12px 8px;
-      height: 40px;
-      width: 100%;
-      cursor: pointer;
-      outline: none;
-    }
-    .device-dropdown {
-      width: 180px;
-    }
-
-    .device-select {
-      appearance: none;
-      background: transparent;
-      border: none;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 14px;
-      color: #414454;
-      padding: 0 24px 0 0;
-      background-repeat: no-repeat;
-      background-position: right 8px center;
-      background-size: 12px 8px;
-      height: 40px;
-      width: 100%;
-      cursor: pointer;
-      outline: none;
-    }
-
-    .ml-select {
-      appearance: none;
-      background: transparent;
-      border: none;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 14px;
-      color: #414454;
-      padding: 0 24px 0 0;
-      background-repeat: no-repeat;
-      background-position: right 8px center;
-      background-size: 12px 8px;
-      height: 40px;
-      width: 100%;
-      cursor: pointer;
-      outline: none;
-    }
-
-    .tab-content.shifted {
-      top: 330px;
-    }
-
-    .cards-container {
-      display: flex;
-      gap: 8px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      scrollbar-width: none;
-      padding-bottom: 8px;
-      user-select: none;
-    }
-
-    @keyframes fadeInHeight {
-      from { opacity: 0; max-height: 0; }
-      to { opacity: 1; max-height: 120px; }
-    }
   `
-
-
-  ],
-
+ 
 })
 export class DashboardPageComponent implements OnInit {
   // Signals for reactive state management
@@ -489,6 +226,9 @@ export class DashboardPageComponent implements OnInit {
   selectedMlOutput = signal('');
   selectedDeviceID = signal('');
   deviceIDs = signal<string[]>([]);
+  selectedChargingStatus = signal('');
+  selectedDeviceHealthStatus = signal('');
+  deviceHealthSearchTerm = signal('');
 
   // Transaction cards as signal for reactive update
   transactionCards = signal([
@@ -583,7 +323,6 @@ export class DashboardPageComponent implements OnInit {
     this.showMoreOptions.update(value => !value);
   }
 
-  // Computed for filtered transaction cards if needed (optional)
   get transactionCardsList() {
     return this.transactionCards();
   }

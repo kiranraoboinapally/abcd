@@ -30,346 +30,127 @@ interface Transaction {
   standalone: true,
   imports: [CommonModule, HttpClientModule],
   template: `
-    <div class="fraud-results-container">
-      <div class="fraud-header">
-        <img src="assets/icons/10.svg" class="fraud-icon" alt="Fraud Icon" />
-        <div class="fraud-title">ML Fraud Detection Results</div>
-      </div>
+    <div class="w-auto h-[527px] p-4 box-border bg-white border border-gray-300 rounded-lg flex flex-col font-sans select-none">
+  <div class="flex items-center mb-3">
+    <img src="assets/icons/10.svg" alt="Fraud Icon" class="w-[25px] h-[25px] mr-2.5" />
+    <div class="text-lg font-semibold text-gray-900">ML Fraud Detection Results</div>
+  </div>
 
-      <div *ngIf="successMessage()" class="success-message">
-        {{ successMessage() }}
-      </div>
+  <div *ngIf="successMessage()" class="bg-green-100 text-green-800 p-2 rounded-md mb-2.5 text-sm font-medium">
+    {{ successMessage() }}
+  </div>
 
-      <div class="fraud-table">
-        <div class="table-header">
-          <div class="col">Transactions ID</div>
-          <div class="col">Device ID</div>
-          <div class="col">Amount</div>
-          <div class="col">Anomaly Detected</div>
-          <div class="col">Confidence</div>
-          <div class="col">Timestamp</div>
-          <div class="col">Review</div>
-        </div>
-
-        <div class="table-body" tabindex="0">
-          <ng-container *ngFor="let row of paginatedData(); trackBy: trackByTransactionId">
-            <div class="table-row">
-              <div class="col">{{ row.transactionsId }}</div>
-              <div class="col">{{ row.deviceID }}</div>
-              <div class="col">{{ row.amount }}</div>
-              <div class="col">{{ row.mlOutput }}</div>
-              <div class="col">{{ row.confidence }}</div>
-              <div class="col">{{ row.timeStamp | date: 'short' }}</div>
-              <div
-                class="col review-cell"
-                (click)="toggleExpand(row.transactionsId)"
-                style="cursor: pointer;"
-              >
-                <ng-container *ngIf="row.mlOutput === 'Yes'; else showReviewText">
-                  <img
-                    src="assets/icons/18.svg"
-                    alt="Review Icon"
-                    class="review-icon"
-                    [class.orange]="!row.review"
-                    [class.red]="row.review === 'Yes'"
-                    [class.green]="row.review === 'No'"
-                  />
-                </ng-container>
-                <ng-template #showReviewText>
-                  <ng-container *ngIf="row.review !== 'No'">
-                    {{ row.review }}
-                  </ng-container>
-                </ng-template>
-              </div>
-            </div>
-
-            <div *ngIf="expandedRow() === row.transactionsId" class="review-panel">
-              <div class="question-text">Is this fraud activity?</div>
-              <div class="btn-group">
-                <button
-                  class="btn yes-btn"
-                  [disabled]="row.review === 'Yes'"
-                  (click)="submitReview(row.transactionsId, 'Yes')"
-                >
-                  Yes
-                </button>
-                <button
-                  class="btn no-btn"
-                  [disabled]="row.review === 'No'"
-                  (click)="submitReview(row.transactionsId, 'No')"
-                >
-                  No
-                </button>
-              </div>
-            </div>
-          </ng-container>
-        </div>
-      </div>
-
-      <div class="fraud-summary">
-        <div class="summary-left">
-          <span>Total Transactions - {{ totalItems() }}</span>
-          <span>Review Required - {{ reviewCount() }}</span>
-        </div>
-        <div class="summary-right ml-status">
-          <img src="assets/icons/Vector.svg" alt="Status Icon" />
-          ML Model Performance : Active
-        </div>
-      </div>
-
-      <div class="pagination-controls">
-        <button (click)="prevPage()" [disabled]="currentPage() === 1">‹</button>
-        <span>{{ startItem() }} – {{ endItem() }} of {{ totalItems() }}</span>
-        <button (click)="nextPage()" [disabled]="currentPage() === totalPages()">›</button>
-      </div>
+  <div class="border border-gray-200 rounded-md flex flex-col flex-grow min-h-0 overflow-hidden">
+    <div
+      class="flex w-full h-[50px] items-center justify-between font-semibold text-sm bg-gray-100 text-gray-800 border-gray-300 px-2 box-border"
+    >
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Transactions ID</div>
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Device ID</div>
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Amount</div>
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Anomaly Detected</div>
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Confidence</div>
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Timestamp</div>
+      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Review</div>
     </div>
-  `,
-  styles: [
-    `
-      /* ... your existing styles ... */
 
+    <div
+      class="flex-grow overflow-y-auto py-2 flex flex-col gap-12"
+      tabindex="0"
+    >
+      <ng-container *ngFor="let row of paginatedData(); trackBy: trackByTransactionId">
+        <div
+          class="flex items-center p-4 pl-0 justify-between h-12 bg-white rounded-md px-2 text-xs transition-colors duration-200 hover:bg-blue-50"
+        >
+          <div class="flex-1 text-center px-1 truncate text-[14px]">{{ row.transactionsId }}</div>
+          <div class="flex-1 text-center px-1 truncate text-[14px]">{{ row.deviceID }}</div>
+          <div class="flex-1 text-center px-1 truncate text-[14px]">{{ row.amount }}</div>
+          <div class="flex-1 text-center px-1 truncate text-[14px]">{{ row.mlOutput }}</div>
+          <div class="flex-1 text-center px-1 truncate text-[14px]">{{ row.confidence }}</div>
+          <div class="flex-1 text-center px-1 truncate text-[14px]">{{ row.timeStamp | date: 'short' }}</div>
+          <div
+            class="flex-1 text-center px-1 cursor-pointer select-none review-cell flex items-center justify-center"
+            (click)="toggleExpand(row.transactionsId)"
+          >
+            <ng-container *ngIf="row.mlOutput === 'Yes'; else showReviewText">
+              <img
+                src="assets/icons/18.svg"
+                alt="Review Icon"
+                class="w-[25px] h-[25px] transition-colors duration-300"
+                [ngClass]="{
+                  'text-orange-500': row.mlOutput === 'Yes' && (row.review === '' || row.review == null),
+                  'text-red-500': row.mlOutput === 'Yes' && row.review === 'Yes',
+                  'text-green-500': row.mlOutput === 'Yes' && row.review === 'No'
+                }"
+              />
+            </ng-container>
+            <ng-template #showReviewText>
+              <ng-container *ngIf="row.review !== 'No'">
+                {{ row.review }}
+              </ng-container>
+            </ng-template>
+          </div>
+        </div>
 
+        <div
+          *ngIf="expandedRow() === row.transactionsId"
+          class="flex items-center justify-end bg-gray-50 w-full p-2"
+        >
+          <div class="flex-grow text-right text-base mr-4">Is this fraud activity?</div>
+          <div class="flex gap-2">
+            <button
+              class="w-[46px] h-[30px] text-base border border-green-600 rounded select-none flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed bg-transparent text-green-600"
+              [disabled]="row.review === 'Yes'"
+              (click)="submitReview(row.transactionsId, 'Yes')"
+            >
+              Yes
+            </button>
+            <button
+              class="w-[46px] h-[30px] text-base border border-red-600 rounded select-none flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed bg-transparent text-red-600"
+              [disabled]="row.review === 'No'"
+              (click)="submitReview(row.transactionsId, 'No')"
+            >
+              No
+            </button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </div>
 
+  <div
+    class="flex justify-between items-center h-10 text-sm text-gray-700 border-t border-gray-200 px-2 box-border mt-1 select-none flex-wrap gap-5"
+  >
+    <div class="flex gap-5 items-center flex-wrap">
+      <span>Total Transactions - {{ totalItems() }}</span>
+      <span>Review Required - {{ reviewCount() }}</span>
+    </div>
+    <div class="flex items-center gap-1.5 text-green-600 text-sm">
+      <img src="assets/icons/Vector.svg" alt="Status Icon" class="w-4 h-4" />
+      ML Model Performance : Active
+    </div>
+  </div>
 
-
-
-
-      .fraud-results-container {
-        width: auto;
-        height: 527px;
-        padding: 16px;
-        box-sizing: border-box;
-        background: #fff;
-        border: 1px solid #dbe5ea;
-        border-radius: 10px;
-        display: flex;
-        flex-direction: column;
-        font-family: 'Nunito Sans', sans-serif;
-        user-select: none;
-      }
-      .fraud-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-      .fraud-icon {
-        width: 25px;
-        height: 25px;
-        margin-right: 10px;
-      }
-      .fraud-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #1d1d1d;
-      }
-      .fraud-table {
-        border: 1px solid #eee;
-        border-radius: 4px;
-        display: flex;
-        flex-direction: column;
-        flex-grow: 1;
-        min-height: 0;
-        overflow: hidden;
-      }
-      .table-header {
-        display: flex;
-        width: 100%;
-        height: 60px;
-        align-items: center;
-        border-bottom: 1px solid #eee;
-        font-weight: bold;
-        font-size: 13px;
-        background-color: #f5f7fa;
-        color: #1d1d1d;
-        padding: 0 8px;
-        box-sizing: border-box;
-        user-select: none;
-      }
-      .table-body {
-        height: calc(70px * 4 + 24px);
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding: 16px 2px 0 8px;
-        box-sizing: border-box;
-        scrollbar-width: thin;
-        scrollbar-color: #ccc transparent;
-        display: flex;
-        flex-direction: column;
-        gap: 64px;
-      }
-      .table-body::-webkit-scrollbar {
-        width: 8px;
-      }
-      .table-body::-webkit-scrollbar-thumb {
-        background-color: #ccc;
-        border-radius: 4px;
-      }
-      .table-row {
-        display: flex;
-        width: 100%;
-        height: 70px;
-        align-items: center;
-        font-size: 13px;
-        border: 1px solid #eee;
-        border-radius: 4px;
-        padding: 0 4px;
-        box-sizing: border-box;
-        user-select: text;
-        background-color: #fff;
-        transition: background-color 0.2s ease;
-      }
-      .table-row:hover {
-        background-color: #f0f8ff;
-      }
-      .col {
-        width: 14.28%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding-left: 6px;
-      }
-      .fraud-summary {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        height: 40px;
-        font-size: 14px;
-        color: #414454;
-        border-top: 1px solid #eee;
-        padding: 0 8px;
-        box-sizing: border-box;
-        margin-top: 4px;
-        user-select: none;
-      }
-      .summary-left {
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-      .summary-right {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: green;
-        font-size: 14px;
-      }
-      .summary-right img {
-        width: 16px;
-        height: 16px;
-      }
-      .pagination-controls {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        margin-top: 6px;
-        user-select: none;
-      }
-      .pagination-controls button {
-        background: none;
-        border: none;
-        font-size: 18px;
-        cursor: pointer;
-        color: #3182ce;
-        padding: 2px 8px;
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
-      }
-      .pagination-controls button:hover:not(:disabled) {
-        background-color: #dbeafe;
-      }
-      .pagination-controls button:disabled {
-        color: #ccc;
-        cursor: not-allowed;
-        background: none;
-      }
-
-      .review-panel {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        height: 2px;
-        border: 1px solid #eee;
-        background-color: #f9f9f9;
-        width: 100%;
-      }
-
-      .question-text {
-        flex-grow: 1;
-        font-size: 15px;
-        line-height: 1;
-        margin-right: 16px;
-        text-align: right;
-      }
-
-      .btn-group {
-        display: flex;
-        gap: 8px;
-        padding: 2px 2px 2px 2px;
-      }
-
-      .btn {
-        width: 46px;
-        height: 30px;
-        font-size: 15px;
-        line-height: 1;
-        border: 1px solid;
-        background: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        user-select: none;
-      }
-
-      .yes-btn {
-        border-color: green;
-        color: green;
-      }
-
-      .no-btn {
-        border-color: red;
-        color: red;
-      }
-
-      .success-message {
-        background-color: #d1fae5;
-        color: #065f46;
-        padding: 8px;
-        border-radius: 6px;
-        margin-bottom: 10px;
-        font-size: 14px;
-        font-weight: 500;
-      }
- 
-      .review-icon {
-        width: 25x;
-        height: 25px;
-        filter: invert(48%) sepia(74%) saturate(3855%) hue-rotate(10deg) brightness(100%) contrast(104%);
-        transition: filter 0.3s ease;
-      }
-
-      .review-icon.orange {
-        /* Original orange color */
-        filter: invert(48%) sepia(74%) saturate(3855%) hue-rotate(10deg) brightness(100%) contrast(104%);
-      }
-
-      .review-icon.red {
-        /* Red color */
-        filter: invert(22%) sepia(87%) saturate(7491%) hue-rotate(350deg) brightness(88%) contrast(102%);
-      }
-
-      .review-icon.green {
-        /* Green color */
-        filter: invert(37%) sepia(84%) saturate(495%) hue-rotate(81deg) brightness(94%) contrast(92%);
-      }
-
-      /* ... rest of your styles ... */
-    `,
-  ],
+  <div class="flex justify-end items-center gap-2 text-xs mt-1 select-none">
+    <button
+      class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
+      (click)="prevPage()"
+      [disabled]="currentPage() === 1"
+      aria-label="Previous page"
+    >
+      ‹
+    </button>
+    <span>{{ startItem() }} – {{ endItem() }} of {{ totalItems() }}</span>
+    <button
+      class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
+      (click)="nextPage()"
+      [disabled]="currentPage() === totalPages()"
+      aria-label="Next page"
+    >
+      ›
+    </button>
+  </div>
+</div>
+`
 })
 export class FraudResultsTableComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);

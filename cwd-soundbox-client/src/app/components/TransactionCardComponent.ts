@@ -6,75 +6,35 @@ import { CommonModule, DecimalPipe } from '@angular/common';
   standalone: true,
   imports: [CommonModule, DecimalPipe],
   template: `
-    <div class="card">
-      <div class="card-header">
-        <h3 class="heading">{{ heading }}</h3>
-        <img *ngIf="icon" [src]="icon" alt="" class="icon" />
-      </div>
-      <div class="count" [style.color]="countColor">{{ count | number }}</div>
-      <div class="description">{{ description }}</div>
-    </div>
-  `,
-  styles: [`
-.card {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 15px 34px 10px;
-  gap: 10px;
+<div
+  class="box-border flex flex-col justify-center items-start p-[15px_34px_10px] gap-2.5
+         border-2 border-[#B0B8C1] rounded-[10px] shadow-[0_2px_6px_rgba(0,0,0,0.05)] bg-white
+         w-[393px] h-[150px]"
+>
+  <div class="flex justify-between items-center w-full">
+    <h3
+      class="font-nunito font-medium text-[18px] leading-[27px] max-w-[70%] m-0
+             text-[#1D1D1D] whitespace-nowrap overflow-hidden text-ellipsis"
+    >
+      {{ heading }}
+    </h3>
+    <img *ngIf="icon" [src]="icon" alt="" class="w-[30px] h-[30px]" />
+  </div>
 
-  border: 2px solid #B0B8C1; /* light grey with a blue tint */
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  background-color: #FFFFFF;
+  <div
+    class="font-nunito font-extrabold text-[36px] leading-[55px]"
+    [style.color]="countColor"
+  >
+    {{ count | number }}
+  </div>
 
-  width: 393px;
-  height: 150px;
-}
-
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-    }
-
-    .heading {
-      font-family: 'Nunito Sans', sans-serif;
-      font-weight: 500;
-      font-size: 18px;
-      line-height: 27px;
-      max-width: 70%;
-      margin: 0;
-      color: #1D1D1D;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .icon {
-      width: 30px;
-      height: 30px;
-    }
-
-    .count {
-      font-family: 'Nunito Sans', sans-serif;
-      font-weight: 700;
-      font-size: 36px;
-      line-height: 55px;
-    }
-
-    .description {
-      font-family: 'Nunito Sans', sans-serif;
-      font-weight: 400;
-      font-size: 14px;
-      color: #908F8F;
-      line-height: 20px;
-    }
-  `]
+  <div
+    class="font-nunito font-normal text-[14px] leading-[20px] text-[#908F8F]"
+  >
+    {{ description }}
+  </div>
+</div>
+  `
 })
 export class TransactionCardComponent {
   @Input() heading!: string;

@@ -2,7 +2,7 @@ import {
   Component,
   OnInit,
   signal,
-  computed,
+  computed,Input
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -31,152 +31,83 @@ interface DeviceHealth {
   standalone: true,
   imports: [CommonModule, HttpClientModule, HighchartsChartModule],
   template: `
-    <div class="device-health-wrapper">
-      <!-- Left: Chart -->
-      <div class="chart-box">
-        <highcharts-chart
-          *ngIf="data().length > 0"
-          [Highcharts]="Highcharts"
-          [options]="chartOptions()"
-          style="width: 100%; height: 500px; display: block"
-        ></highcharts-chart>
+<div class="flex flex-nowrap gap-4 p-4 bg-gray-100 min-h-[648px]">
+  <!-- Chart Box -->
+  <div class="w-[520px] h-[648px] p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
+    <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
+      <h2 class="m-0 font-bold text-2xl text-red-600">At Risk</h2>
+    </div>
+    <highcharts-chart
+      *ngIf="data().length > 0"
+      [Highcharts]="Highcharts"
+      [options]="chartOptions()"
+      style="width: 400px; height: 500px; display: block; margin: auto"
+    ></highcharts-chart>
+  </div>
+
+  <!-- Table Box -->
+  <div class="w-[1076px] h-[648px] bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+    <div class="w-[601px] h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
+      Device Health Records
+    </div>
+
+    <table class="w-[968px] border-collapse text-sm select-none">
+      <thead>
+        <tr class="h-[38px] bg-gray-200">
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Block</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Device ID</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Charging Status</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Start Battery</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">End Battery</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Start Time</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">End Time</th>
+          <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Anomaly</th>
+        </tr>
+      </thead>
+    </table>
+
+    <div class="w-[958px] h-[420px] overflow-y-auto mt-1 border border-gray-300 rounded">
+      <table class="w-full border-collapse text-sm">
+        <tbody>
+          <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.block }}</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.device_id }}</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.charging_status }}</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_battery_level }}%</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_battery_level }}%</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_time }}</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_time }}</td>
+            <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.is_anomaly }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="flex justify-between items-center pt-3 border-t border-gray-300 mt-auto">
+      <div class="text-sm text-gray-600 select-none">
+        Showing {{ startItem() }} to {{ endItem() }} of {{ totalItems() }} items
       </div>
-
-      <!-- Right: Table -->
-      <div class="table-box">
-        <table class="device-table">
-          <thead>
-            <tr>
-              <th>Block</th>
-              <th>Device ID</th>
-              <th>Charging Status</th>
-              <th>Start Battery</th>
-              <th>End Battery</th>
-              <th>Start Time</th>
-              <th>End Time</th>
-              <th>Anomaly</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of paginatedData()">
-              <td>{{ item.block }}</td>
-              <td>{{ item.device_id }}</td>
-              <td>{{ item.charging_status }}</td>
-              <td>{{ item.start_battery_level }}%</td>
-              <td>{{ item.end_battery_level }}%</td>
-              <td>{{ item.start_time }}</td>
-              <td>{{ item.end_time }}</td>
-              <td>{{ item.is_anomaly }}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Pagination Controls -->
-        <div class="pagination-controls">
-          <div class="page-info">
-            Showing {{ startItem() }} to {{ endItem() }} of {{ totalItems() }} items
-          </div>
-          <div class="page-buttons">
-            <button (click)="prevPage()" [disabled]="currentPage() === 1">Previous</button>
-            <button (click)="nextPage()" [disabled]="currentPage() === totalPages()">Next</button>
-          </div>
-        </div>
+      <div class="flex gap-2">
+        <button
+          (click)="prevPage()"
+          [disabled]="currentPage() === 1"
+          class="px-4 py-2 border border-gray-300 bg-gray-100 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <button
+          (click)="nextPage()"
+          [disabled]="currentPage() === totalPages()"
+          class="px-4 py-2 border border-gray-300 bg-gray-100 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
       </div>
     </div>
-  `,
-  styles: [
-    `
-      .device-health-wrapper {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: nowrap;
-        padding: 1rem;
-        background: #f9f9f9;
-        min-height: 500px;
-      }
-
-      .chart-box {
-        flex: 0 0 600px;
-        height: 500px;
-        padding: 1rem;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-      }
-
-      .table-box {
-        flex: 1;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-        overflow-x: auto;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .device-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Nunito Sans', sans-serif;
-        font-size: 14px;
-      }
-
-      .device-table th,
-      .device-table td {
-        padding: 12px 15px;
-        text-align: left;
-        border-bottom: 1px solid #ddd;
-      }
-
-      .device-table th {
-        background-color: #e8e8e8;
-        font-weight: 700;
-        color: #333;
-      }
-
-      .device-table tr:hover {
-        background-color: #f0f0f0;
-      }
-
-      .pagination-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem;
-        border-top: 1px solid #ddd;
-      }
-
-      .page-info {
-        font-size: 14px;
-        color: #666;
-      }
-
-      .page-buttons {
-        display: flex;
-        gap: 8px;
-      }
-
-      .page-buttons button {
-        padding: 8px 16px;
-        border: 1px solid #ccc;
-        background-color: #f9f9f9;
-        cursor: pointer;
-        border-radius: 4px;
-        font-family: 'Nunito Sans', sans-serif;
-        font-size: 14px;
-        transition: background-color 0.3s ease;
-      }
-
-      .page-buttons button:hover:not([disabled]) {
-        background-color: #e0e0e0;
-      }
-
-      .page-buttons button[disabled] {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-    `,
-  ],
+  </div>
+</div>
+`
 })
 export class DeviceHealthComponent implements OnInit {
   private apiUrl = environment.apiUrl;
@@ -185,6 +116,14 @@ export class DeviceHealthComponent implements OnInit {
   private perPage = 10;
   currentPage = signal(1);
   Highcharts: typeof Highcharts = Highcharts;
+
+
+@Input() searchTerm: string = '';
+@Input() deviceFilter: string = '';
+@Input() chargingStatusFilter: string = '';
+@Input() statusFilter: string = '';
+
+
 
   constructor(private http: HttpClient) {}
 

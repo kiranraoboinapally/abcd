@@ -7,42 +7,19 @@ import { NgFor } from '@angular/common';
   standalone: true,
   imports: [NgFor],
   template: `
-    <nav class="side-panel">
-      <button 
-        *ngFor="let item of menuItems" 
-        (click)="setView(item.view)">
-        {{ item.label }}
-      </button>
-    </nav>
-  `,
-  styles: [`
-    .side-panel {
-      position: fixed;
-      top: 71px;
-      left: 0;
-      width: 200px;
-      height: calc(100vh - 71px);
-      background-color: #2c3e50;
-      color: white;
-      display: flex;
-      flex-direction: column;
-    }
+<nav
+  class="fixed top-[71px] left-0 w-[200px] h-[calc(100vh-71px)] bg-[#2c3e50] text-white flex flex-col"
+>
+  <button
+    *ngFor="let item of menuItems"
+    (click)="setView(item.view)"
+    class="bg-none border-none text-white p-4 text-left cursor-pointer text-base w-full hover:bg-[#34495e]"
+  >
+    {{ item.label }}
+  </button>
+</nav>
 
-    button {
-      background: none;
-      border: none;
-      color: white;
-      padding: 15px;
-      text-align: left;
-      cursor: pointer;
-      font-size: 16px;
-      width: 100%;
-    }
-
-    button:hover {
-      background-color: #34495e;
-    }
-  `]
+  `
 })
 export class SidePanelComponent {
   private appState = inject(AppStateService);

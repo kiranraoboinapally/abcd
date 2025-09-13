@@ -18,23 +18,16 @@ import { NgIf } from '@angular/common';
   ],
   template: `
     <app-top-bar></app-top-bar>
-    <app-side-panel></app-side-panel>
+<app-side-panel></app-side-panel>
 
-    <div class="main-content">
-      <app-dashboard-page *ngIf="state.currentView() === 'dashboard'"></app-dashboard-page>
-      <app-settings-page *ngIf="state.currentView() === 'settings'"></app-settings-page>
-    </div>
-  `,
-  styles: [`
-    .main-content {
-      margin-left: 200px;
-      margin-top: 71px;
-      height: calc(100vh - 71px);
-      padding: 20px;
-      background-color: #f5f6fa;
-      overflow-y: auto;
-    }
-  `]
+<div
+  class="ml-[200px] mt-[71px] h-[calc(100vh-71px)] p-5 bg-[#f5f6fa] overflow-y-auto"
+>
+  <app-dashboard-page *ngIf="state.currentView() === 'dashboard'"></app-dashboard-page>
+  <app-settings-page *ngIf="state.currentView() === 'settings'"></app-settings-page>
+</div>
+
+  `
 })
 export class LayoutComponent {
   constructor(public state: AppStateService) {}
