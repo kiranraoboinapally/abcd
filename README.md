@@ -9,7 +9,7 @@ This project includes:
 ##  Project Structure
 
 ```
-anomaly-detection-system/
+abcd/
 ├── cwd-soundbox-client/         # Frontend Angular Application
 │   ├── src/
 │   ├── .env                # Frontend environment variables
