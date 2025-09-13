@@ -40,17 +40,17 @@ interface Transaction {
     {{ successMessage() }}
   </div>
 
-  <div class="border border-gray-200 rounded-md flex flex-col flex-grow min-h-0 overflow-hidden">
+  <div class=" rounded-md flex flex-col min-h-0 overflow-hidden">
     <div
-      class="flex w-full h-[50px] items-center justify-between font-semibold text-sm bg-gray-100 text-gray-800 border-gray-300 px-2 box-border"
+      class="flex h-[50px] font-semibold  bg-gray-100 text-gray-800"
     >
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Transactions ID</div>
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Device ID</div>
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Amount</div>
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Anomaly Detected</div>
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Confidence</div>
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Timestamp</div>
-      <div class="flex-1 text-center px-1 text-[18px] font-semibold">Review</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Transactions ID</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Device ID</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Amount</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Anomaly Detected</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Confidence</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Timestamp</div>
+      <div class="flex-1 text-center text-[18px] font-semibold">Review</div>
     </div>
 
     <div
@@ -72,16 +72,23 @@ interface Transaction {
             (click)="toggleExpand(row.transactionsId)"
           >
             <ng-container *ngIf="row.mlOutput === 'Yes'; else showReviewText">
-              <img
-                src="assets/icons/18.svg"
-                alt="Review Icon"
-                class="w-[25px] h-[25px] transition-colors duration-300"
-                [ngClass]="{
-                  'text-orange-500': row.mlOutput === 'Yes' && (row.review === '' || row.review == null),
-                  'text-red-500': row.mlOutput === 'Yes' && row.review === 'Yes',
-                  'text-green-500': row.mlOutput === 'Yes' && row.review === 'No'
-                }"
-              />
+              <ng-container *ngIf="row.mlOutput.toLowerCase() === 'yes'; else showReviewText">
+  <button
+    class="p-2 rounded flex items-center justify-center w-10 h-10 transition-colors duration-300"
+  >
+    <img
+      [src]="
+        row.review === '' ? 'assets/icons/18.svg' :
+        row.review.toLowerCase() === 'yes' ? 'assets/icons/19.svg' :
+        'assets/icons/20.svg'
+      "
+      alt="Status Icon"
+      class="w-6 h-6"
+    />
+  </button>
+</ng-container>
+
+
             </ng-container>
             <ng-template #showReviewText>
               <ng-container *ngIf="row.review !== 'No'">
