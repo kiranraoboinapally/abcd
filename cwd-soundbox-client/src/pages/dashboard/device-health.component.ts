@@ -44,14 +44,14 @@ interface AtRiskDevice {
   selector: 'app-device-health',
   standalone: true,
   imports: [CommonModule, HttpClientModule, HighchartsChartModule],
-  template: `
+ template: `
 <div class="flex flex-nowrap gap-4 p-4 bg-gray-100 min-h-[648px]">
   <!-- At Risk Devices Table (Left Side) -->
   <div class="w-[520px] h-[648px] bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
     <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
       At Risk Devices
     </div>
-
+    <!-- Rest of the At Risk Devices table remains unchanged -->
     <table class="w-full border-collapse text-sm select-none">
       <thead>
         <tr class="h-[38px] bg-gray-200">
@@ -60,7 +60,6 @@ interface AtRiskDevice {
         </tr>
       </thead>
     </table>
-
     <div class="w-full h-[420px] overflow-y-auto mt-1 border border-gray-300 rounded">
       <table class="w-full border-collapse text-sm">
         <tbody>
@@ -74,8 +73,6 @@ interface AtRiskDevice {
         </tbody>
       </table>
     </div>
-
-    <!-- Pagination Controls for At Risk Devices -->
     <div class="flex justify-between items-center pt-3 border-t border-gray-300 mt-auto">
       <div class="text-sm text-gray-600 select-none">
         Showing {{ atRiskStartItem() }} to {{ atRiskEndItem() }} of {{ atRiskTotalItems() }} items
@@ -106,7 +103,7 @@ interface AtRiskDevice {
       <!-- Battery Status Over Time Chart -->
       <div class="w-[520px] p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
         <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
-          <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time{{ selectedDevice() ? ' for Device ' + selectedDevice() : '' }}</h2>
+          <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time</h2>
         </div>
         <highcharts-chart
           *ngIf="filteredData().length > 0"
@@ -133,9 +130,8 @@ interface AtRiskDevice {
     <!-- Bottom: Device Health Records Table -->
     <div class="flex-1 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
       <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
-        All Device Health Records{{ selectedDevice() ? ' for Device ' + selectedDevice() : '' }}
+        All Device Health Records
       </div>
-
       <table class="w-full border-collapse text-sm select-none">
         <thead>
           <tr class="h-[38px] bg-gray-200">
@@ -150,7 +146,6 @@ interface AtRiskDevice {
           </tr>
         </thead>
       </table>
-
       <div class="w-full flex-1 overflow-y-auto mt-1 border border-gray-300 rounded">
         <table class="w-full border-collapse text-sm">
           <tbody>
@@ -167,8 +162,6 @@ interface AtRiskDevice {
           </tbody>
         </table>
       </div>
-
-      <!-- Pagination Controls for Device Health Records -->
       <div class="flex justify-between items-center pt-3 border-t border-gray-300 mt-auto">
         <div class="text-sm text-gray-600 select-none">
           Showing {{ startItem() }} to {{ endItem() }} of {{ totalItems() }} items
@@ -193,7 +186,7 @@ interface AtRiskDevice {
     </div>
   </div>
 </div>
-  `
+`
 })
 export class DeviceHealthComponent implements OnInit, OnChanges {
   private apiUrl = environment.apiUrl;
@@ -212,11 +205,9 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
   @Input() statusFilter: string = '';
   @Input() timeFilter: string = '';
 
-  filteredData = computed(() => {
-    const sel = this.selectedDevice();
-    if (sel === null) return this.data();
-    return this.data().filter(item => item.device_id === sel);
-  });
+ filteredData = computed(() => {
+  return this.data(); // Return all data without filtering by selectedDevice
+});
 
   constructor(private http: HttpClient) {}
 
