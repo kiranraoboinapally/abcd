@@ -291,15 +291,107 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "Review updated successfully"})
 	})
 
-	// Updated getDeviceHealthData endpoint with changed device_id column name
+	// Updated getDeviceHealthData endpoint with filters
 	r.GET("/getDeviceHealthData", func(c *gin.Context) {
+		timeFilter := c.Query("time")
+		deviceIDStr := c.Query("device_id")
+		chargingStatus := c.Query("charging_status")
+		isAnomaly := c.Query("is_anomaly")
+		searchTerm := c.Query("search")
+
 		query := `
 			SELECT block, device_id, CS, start_BL, end_BL, start_time, end_time, is_anomaly
 			FROM device_health
-			ORDER BY block ASC
 		`
+		var conditions []string
+		var params []interface{}
+		paramCount := 1
 
-		rows, err := db.Query(query)
+		if timeFilter != "" && timeFilter != "all" {
+			now := time.Now()
+			var timeThreshold time.Time
+
+			switch timeFilter {
+			case "1h":
+				timeThreshold = now.Add(-1 * time.Hour)
+			case "6h":
+				timeThreshold = now.Add(-6 * time.Hour)
+			case "12h":
+				timeThreshold = now.Add(-12 * time.Hour)
+			case "1d":
+				timeThreshold = now.AddDate(0, 0, -1)
+			case "1w":
+				timeThreshold = now.AddDate(0, 0, -7)
+			case "1m":
+				timeThreshold = now.AddDate(0, -1, 0)
+			case "3m":
+				timeThreshold = now.AddDate(0, -3, 0)
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
+				return
+			}
+
+			conditions = append(conditions, fmt.Sprintf(`start_time >= $%d`, paramCount))
+			params = append(params, timeThreshold)
+			paramCount++
+		}
+
+		if deviceIDStr != "" && deviceIDStr != "all" {
+			deviceID, err := strconv.ParseInt(deviceIDStr, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device_id"})
+				return
+			}
+			conditions = append(conditions, fmt.Sprintf(`device_id = $%d`, paramCount))
+			params = append(params, deviceID)
+			paramCount++
+		}
+
+		if chargingStatus != "" {
+			var cs int
+			switch strings.ToLower(chargingStatus) {
+			case "charging":
+				cs = 1
+			case "discharging":
+				cs = 2
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid charging_status (must be 'Charging' or 'Discharging')"})
+				return
+			}
+			conditions = append(conditions, fmt.Sprintf(`CS = $%d`, paramCount))
+			params = append(params, cs)
+			paramCount++
+		}
+
+		if isAnomaly != "" {
+			var anomalyInt int
+			switch strings.ToLower(isAnomaly) {
+			case "yes":
+				anomalyInt = 1
+			case "no":
+				anomalyInt = 0
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid is_anomaly (must be 'Yes' or 'No')"})
+				return
+			}
+			conditions = append(conditions, fmt.Sprintf(`is_anomaly = $%d`, paramCount))
+			params = append(params, anomalyInt)
+			paramCount++
+		}
+
+		if searchTerm != "" {
+			searchPattern := "%" + strings.ToLower(searchTerm) + "%"
+			conditions = append(conditions, fmt.Sprintf(`LOWER(device_id::text) LIKE $%d`, paramCount))
+			params = append(params, searchPattern)
+			paramCount++
+		}
+
+		if len(conditions) > 0 {
+			query += " WHERE " + strings.Join(conditions, " AND ")
+		}
+		query += " ORDER BY block ASC"
+
+		rows, err := db.Query(query, params...)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -310,17 +402,17 @@ func main() {
 		for rows.Next() {
 			var d DeviceHealth
 			var cs int
-			var isAnomaly int
+			var anomalyInt int
 			var startTime, endTime time.Time
 
-			err := rows.Scan(&d.Block, &d.DeviceID, &cs, &d.StartBL, &d.EndBL, &startTime, &endTime, &isAnomaly)
+			err := rows.Scan(&d.Block, &d.DeviceID, &cs, &d.StartBL, &d.EndBL, &startTime, &endTime, &anomalyInt)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 
 			d.Charging = map[int]string{1: "Charging", 2: "Discharging"}[cs]
-			d.IsAnomaly = map[int]string{0: "No", 1: "Yes"}[isAnomaly]
+			d.IsAnomaly = map[int]string{0: "No", 1: "Yes"}[anomalyInt]
 			d.StartTime = startTime.Format("2006-01-02 15:04:05")
 			d.EndTime = endTime.Format("2006-01-02 15:04:05")
 

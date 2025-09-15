@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TabButtonComponent } from '../../app/components/top-bar/tab-button.component';
 import { TransactionCardComponent } from '../../app/components/TransactionCardComponent';
 import { FraudResultsTableComponent } from './fraud-results-table.component';
-import { DeviceHealthComponent } from './device-health.component';
+import { DeviceHealthComponent, AtRiskDevice } from './device-health.component'; // Import AtRiskDevice
 
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { map } from 'rxjs/operators';
@@ -102,12 +102,12 @@ import { map } from 'rxjs/operators';
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
           <select
             class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedDeviceID()"
-            (ngModelChange)="selectedDeviceID.set($event)"
+            [ngModel]="selectedTransactionDeviceID()"
+            (ngModelChange)="selectedTransactionDeviceID.set($event)"
             aria-label="Device ID Filter"
           >
             <option value="">All Devices</option>
-            <option *ngFor="let device of deviceIDs()" [value]="device">
+            <option *ngFor="let device of transactionDeviceIDs()" [value]="device">
               {{ device }}
             </option>
           </select>
@@ -135,12 +135,12 @@ import { map } from 'rxjs/operators';
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
           <select
             class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedDeviceID()"
-            (ngModelChange)="selectedDeviceID.set($event)"
+            [ngModel]="selectedDeviceHealthDeviceID()"
+            (ngModelChange)="selectedDeviceHealthDeviceID.set($event)"
             aria-label="Device ID Filter"
           >
             <option value="">All Devices</option>
-            <option *ngFor="let device of deviceIDs()" [value]="device">
+            <option *ngFor="let device of deviceHealthDeviceIDs()" [value]="device">
               {{ device }}
             </option>
           </select>
@@ -198,7 +198,7 @@ import { map } from 'rxjs/operators';
               [mlFilter]="selectedMlOutput()"
               [timeFilter]="selectedTimeFilter()"
               [searchTerm]="searchTerm()"
-              [deviceFilter]="selectedDeviceID()"
+              [deviceFilter]="selectedTransactionDeviceID()"
               (statsChanged)="onStatsChanged($event)"
             ></app-fraud-results-table>
           </div>
@@ -218,7 +218,7 @@ import { map } from 'rxjs/operators';
           </div>
           <app-device-health
             [searchTerm]="deviceHealthSearchTerm()"
-            [deviceFilter]="selectedDeviceID()"
+            [deviceFilter]="selectedDeviceHealthDeviceID()"
             [chargingStatusFilter]="selectedChargingStatus()"
             [statusFilter]="selectedDeviceHealthStatus()"
             [timeFilter]="selectedTimeFilter()"
@@ -237,8 +237,10 @@ export class DashboardPageComponent implements OnInit {
   searchTerm = signal('');
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
-  selectedDeviceID = signal('');
-  deviceIDs = signal<string[]>([]);
+  transactionDeviceIDs = signal<string[]>([]);
+  deviceHealthDeviceIDs = signal<string[]>([]);
+  selectedTransactionDeviceID = signal('');
+  selectedDeviceHealthDeviceID = signal('');
   selectedChargingStatus = signal('');
   selectedDeviceHealthStatus = signal('');
   deviceHealthSearchTerm = signal('');
@@ -306,23 +308,23 @@ export class DashboardPageComponent implements OnInit {
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.fetchDeviceIDs();
+    this.fetchTransactionDeviceIDs();
     this.fetchAtRiskKPIs();
   }
 
-  fetchDeviceIDs(): void {
+  fetchTransactionDeviceIDs(): void {
     this.http.get<{ device_ids: number[] }>('http://localhost:8080/getAllDeviceIds')
       .pipe(
         map(res => res.device_ids.map(id => id.toString()))
       )
       .subscribe({
-        next: (ids) => this.deviceIDs.set(ids),
-        error: (err) => console.error('Failed to fetch device IDs', err),
+        next: (ids) => this.transactionDeviceIDs.set(ids),
+        error: (err) => console.error('Failed to fetch transaction device IDs', err),
       });
   }
 
   fetchAtRiskKPIs(): void {
-    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number } }>('http://localhost:8080/getAtRiskKPIs')
+    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number }, at_risk_devices: AtRiskDevice[] }>('http://localhost:8080/getAtRiskKPIs')
       .subscribe({
         next: (res) => {
           this.deviceHealthCards.update(cards =>
@@ -335,6 +337,8 @@ export class DashboardPageComponent implements OnInit {
               }
             })
           );
+          // Set device health dropdown to at-risk device IDs
+          this.deviceHealthDeviceIDs.set(res.at_risk_devices.map(d => d.device_id.toString()));
         },
         error: (err) => console.error('Failed to fetch at risk KPIs', err),
       });

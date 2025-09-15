@@ -35,7 +35,7 @@ interface DeviceHealth {
   is_anomaly: string;
 }
 
-interface AtRiskDevice {
+export interface AtRiskDevice {
   device_id: number;
   device_bs: number;
 }
@@ -47,7 +47,7 @@ interface AtRiskDevice {
  template: `
 <div class="flex flex-nowrap gap-4 p-4 bg-gray-100 min-h-[648px]">
   <!-- At Risk Devices Table (Left Side) -->
-  <div class="w-[520px] h-[648px] bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+  <div class="w-[400px] h-[648px] bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
     <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
       At Risk Devices
     </div>
