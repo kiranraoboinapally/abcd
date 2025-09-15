@@ -46,12 +46,10 @@ export interface AtRiskDevice {
   imports: [CommonModule, HttpClientModule, HighchartsChartModule],
  template: `
 <div class="flex flex-nowrap gap-4 p-4 bg-gray-100 min-h-[648px]">
-  <!-- At Risk Devices Table (Left Side) -->
   <div class="w-[400px] h-[648px] bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
     <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
       At Risk Devices
     </div>
-    <!-- Rest of the At Risk Devices table remains unchanged -->
     <table class="w-full border-collapse text-sm select-none">
       <thead>
         <tr class="h-[38px] bg-gray-200">
@@ -96,11 +94,8 @@ export interface AtRiskDevice {
     </div>
   </div>
 
-  <!-- Right Side: Charts and Records -->
   <div class="flex flex-col gap-4 w-[1040px] h-[648px] box-border">
-    <!-- Top: Battery Status Over Time and Gauge Charts -->
     <div class="flex gap-4 h-[300px]">
-      <!-- Battery Status Over Time Chart -->
       <div class="w-[520px] p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
         <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
           <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time</h2>
@@ -113,7 +108,6 @@ export interface AtRiskDevice {
         ></highcharts-chart>
       </div>
 
-      <!-- Gauge Chart (KPI Section) -->
       <div class="w-[520px] p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
         <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
           <h2 class="m-0 font-bold text-2xl text-red-600">Current Battery Status{{ selectedDevice() ? ' for Device ' + selectedDevice() : '' }}</h2>
@@ -127,7 +121,6 @@ export interface AtRiskDevice {
       </div>
     </div>
 
-    <!-- Bottom: Device Health Records Table -->
     <div class="flex-1 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
       <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
         All Device Health Records
@@ -203,11 +196,10 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
   @Input() deviceFilter: string = '';
   @Input() chargingStatusFilter: string = '';
   @Input() statusFilter: string = '';
-  @Input() timeFilter: string = '';
 
- filteredData = computed(() => {
-  return this.data(); // Return all data without filtering by selectedDevice
-});
+  filteredData = computed(() => {
+    return this.data();
+  });
 
   constructor(private http: HttpClient) {}
 
@@ -217,8 +209,12 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.fetchData();
-    this.fetchAtRiskData();
+    if (changes['deviceFilter'] || changes['chargingStatusFilter'] || changes['statusFilter'] || changes['searchTerm']) {
+      this.fetchData();
+    }
+    if (changes['deviceFilter'] || changes['searchTerm']) {
+      this.fetchAtRiskData();
+    }
   }
 
   selectDevice(deviceId: number): void {
@@ -233,7 +229,6 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
     if (this.deviceFilter) params['device_id'] = this.deviceFilter;
     if (this.chargingStatusFilter) params['charging_status'] = this.chargingStatusFilter;
     if (this.statusFilter) params['is_anomaly'] = this.statusFilter === 'Anomaly' ? 'Yes' : 'No';
-    if (this.timeFilter) params['time'] = this.timeFilter;
 
     const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
     if (queryString) url += `?${queryString}`;
@@ -243,7 +238,7 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
       .subscribe({
         next: (res) => {
           console.log('Fetched device health data:', res.device_health);
-          this.data.set(res.device_health);
+          this.data.set(res.device_health || []); // Fix: Default to empty array if null
         },
         error: (err) => console.error('Error fetching data:', err),
       });
@@ -254,7 +249,6 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
     const params: { [key: string]: string } = {};
     if (this.searchTerm) params['search'] = this.searchTerm;
     if (this.deviceFilter) params['device_id'] = this.deviceFilter;
-    if (this.timeFilter) params['time'] = this.timeFilter;
 
     const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
     if (queryString) url += `?${queryString}`;
@@ -264,10 +258,15 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
       .subscribe({
         next: (res) => {
           console.log('Fetched at risk devices:', res.at_risk_devices);
-          this.atRiskData.set(res.at_risk_devices);
-          // Set default selected to first device if available
-          if (res.at_risk_devices.length > 0 && this.selectedDevice() === null) {
-            this.selectedDevice.set(res.at_risk_devices[0].device_id);
+          this.atRiskData.set(res.at_risk_devices || []); // Fix: Default to empty array if null
+          // NEW: If no at-risk devices are found, clear the selected device
+          if (res.at_risk_devices && res.at_risk_devices.length === 0) {
+            this.selectedDevice.set(null);
+          } else {
+            // Set default selected to first device if available and no device is currently selected
+            if (this.selectedDevice() === null) {
+              this.selectedDevice.set(res.at_risk_devices[0].device_id);
+            }
           }
         },
         error: (err) => console.error('Error fetching at risk data:', err),

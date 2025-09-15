@@ -1,19 +1,19 @@
 package main
 
 import (
-	"time"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
-	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
-	"github.com/joho/godotenv"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 type Transaction struct {
@@ -46,9 +46,9 @@ type DeviceHealth struct {
 }
 
 type AtRiskKPI struct {
-	TotalDevices   int     `json:"total_devices"`
-	AtRisk         int     `json:"at_risk"`
-	AtRiskPercent  float64 `json:"at_risk_percent"`
+	TotalDevices  int     `json:"total_devices"`
+	AtRisk        int     `json:"at_risk"`
+	AtRiskPercent float64 `json:"at_risk_percent"`
 }
 
 type AtRiskDevice struct {
@@ -57,7 +57,7 @@ type AtRiskDevice struct {
 }
 
 type AtRiskResponse struct {
-	KPI    AtRiskKPI       `json:"kpi"`
+	KPI     AtRiskKPI      `json:"kpi"`
 	Devices []AtRiskDevice `json:"at_risk_devices"`
 }
 
@@ -223,9 +223,33 @@ func main() {
 		c.JSON(http.StatusOK, response)
 	})
 
-	// Get all device IDs
+	// Get all device IDs from anomaly_results
 	r.GET("/getAllDeviceIds", func(c *gin.Context) {
 		query := `SELECT DISTINCT device_id FROM anomaly_results ORDER BY device_id`
+
+		rows, err := db.Query(query)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var deviceIDs []int64
+		for rows.Next() {
+			var deviceID int64
+			if err := rows.Scan(&deviceID); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			deviceIDs = append(deviceIDs, deviceID)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"device_ids": deviceIDs})
+	})
+
+	// Get all device IDs from device_health
+	r.GET("/getDeviceHealthIds", func(c *gin.Context) {
+		query := `SELECT DISTINCT device_id FROM device_health ORDER BY device_id`
 
 		rows, err := db.Query(query)
 		if err != nil {
@@ -293,7 +317,6 @@ func main() {
 
 	// Updated getDeviceHealthData endpoint with filters
 	r.GET("/getDeviceHealthData", func(c *gin.Context) {
-		timeFilter := c.Query("time")
 		deviceIDStr := c.Query("device_id")
 		chargingStatus := c.Query("charging_status")
 		isAnomaly := c.Query("is_anomaly")
@@ -306,35 +329,6 @@ func main() {
 		var conditions []string
 		var params []interface{}
 		paramCount := 1
-
-		if timeFilter != "" && timeFilter != "all" {
-			now := time.Now()
-			var timeThreshold time.Time
-
-			switch timeFilter {
-			case "1h":
-				timeThreshold = now.Add(-1 * time.Hour)
-			case "6h":
-				timeThreshold = now.Add(-6 * time.Hour)
-			case "12h":
-				timeThreshold = now.Add(-12 * time.Hour)
-			case "1d":
-				timeThreshold = now.AddDate(0, 0, -1)
-			case "1w":
-				timeThreshold = now.AddDate(0, 0, -7)
-			case "1m":
-				timeThreshold = now.AddDate(0, -1, 0)
-			case "3m":
-				timeThreshold = now.AddDate(0, -3, 0)
-			default:
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
-				return
-			}
-
-			conditions = append(conditions, fmt.Sprintf(`start_time >= $%d`, paramCount))
-			params = append(params, timeThreshold)
-			paramCount++
-		}
 
 		if deviceIDStr != "" && deviceIDStr != "all" {
 			deviceID, err := strconv.ParseInt(deviceIDStr, 10, 64)
@@ -424,134 +418,109 @@ func main() {
 
 	// New endpoint for At Risk KPIs and Devices
 	r.GET("/getAtRiskKPIs", func(c *gin.Context) {
-	timeFilter := c.Query("time")
-	deviceIDStr := c.Query("device_id")
-	searchTerm := c.Query("search")
+		deviceIDStr := c.Query("device_id")
+		searchTerm := c.Query("search")
 
-	var conditions []string
-	var params []interface{}
-	paramCount := 1
+		var conditions []string
+		var params []interface{}
+		paramCount := 1
 
-	if timeFilter != "" && timeFilter != "all" {
-		now := time.Now()
-		var timeThreshold time.Time
-
-		switch timeFilter {
-		case "1h":
-			timeThreshold = now.Add(-1 * time.Hour)
-		case "6h":
-			timeThreshold = now.Add(-6 * time.Hour)
-		case "12h":
-			timeThreshold = now.Add(-12 * time.Hour)
-		case "1d":
-			timeThreshold = now.AddDate(0, 0, -1)
-		case "1w":
-			timeThreshold = now.AddDate(0, 0, -7)
-		case "1m":
-			timeThreshold = now.AddDate(0, -1, 0)
-		case "3m":
-			timeThreshold = now.AddDate(0, -3, 0)
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
-			return
+		// Add aliases to the conditions where necessary
+		if deviceIDStr != "" && deviceIDStr != "all" {
+			deviceID, err := strconv.ParseInt(deviceIDStr, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device_id"})
+				return
+			}
+			conditions = append(conditions, fmt.Sprintf(`dh.device_id = $%d`, paramCount))
+			params = append(params, deviceID)
+			paramCount++
 		}
 
-		conditions = append(conditions, fmt.Sprintf(`start_time >= $%d`, paramCount))
-		params = append(params, timeThreshold)
-		paramCount++
-	}
-
-	if deviceIDStr != "" && deviceIDStr != "all" {
-		deviceID, err := strconv.ParseInt(deviceIDStr, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device_id"})
-			return
+		if searchTerm != "" {
+			searchPattern := "%" + strings.ToLower(searchTerm) + "%"
+			conditions = append(conditions, fmt.Sprintf(`LOWER(dh.device_id::text) LIKE $%d`, paramCount))
+			params = append(params, searchPattern)
+			paramCount++
 		}
-		conditions = append(conditions, fmt.Sprintf(`device_id = $%d`, paramCount))
-		params = append(params, deviceID)
-		paramCount++
-	}
 
-	if searchTerm != "" {
-		searchPattern := "%" + strings.ToLower(searchTerm) + "%"
-		conditions = append(conditions, fmt.Sprintf(`LOWER(device_id::text) LIKE $%d`, paramCount))
-		params = append(params, searchPattern)
-		paramCount++
-	}
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = " WHERE " + strings.Join(conditions, " AND ")
+		}
 
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	// Total devices query
-	totalQuery := fmt.Sprintf(`SELECT COUNT(DISTINCT device_id) FROM device_health%s`, whereClause)
-	var totalDevices sql.NullInt64
-	err := db.QueryRow(totalQuery, params...).Scan(&totalDevices)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// At risk query (no is_anomaly, only bs.device_bs < 50)
-	riskQuery := fmt.Sprintf(`
-		SELECT COUNT(DISTINCT dh.device_id) 
-		FROM device_health dh 
-		JOIN bl_score bs ON dh.device_id = bs.device_id
-		%s AND bs.device_bs < 50
-	`, whereClause)
-	var atRisk sql.NullInt64
-	err = db.QueryRow(riskQuery, params...).Scan(&atRisk)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	total := int(totalDevices.Int64)
-	riskCount := int(atRisk.Int64)
-	percent := 0.0
-	if total > 0 {
-		percent = float64(riskCount) / float64(total) * 100
-	}
-
-	// At risk devices table query (no is_anomaly)
-	tableQuery := fmt.Sprintf(`
-		SELECT DISTINCT dh.device_id, bs.device_bs 
-		FROM device_health dh 
-		JOIN bl_score bs ON dh.device_id = bs.device_id
-		%s AND bs.device_bs < 50
-		ORDER BY dh.device_id
-	`, whereClause)
-	rows, err := db.Query(tableQuery, params...)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var devices []AtRiskDevice
-	for rows.Next() {
-		var d AtRiskDevice
-		err := rows.Scan(&d.DeviceID, &d.DeviceBS)
+		// Total devices query - now using JOIN and alias
+		totalQuery := fmt.Sprintf(`
+			SELECT COUNT(DISTINCT dh.device_id)
+			FROM device_health dh
+			JOIN bl_score bs ON dh.device_id = bs.device_id
+			%s
+		`, whereClause)
+		var totalDevices sql.NullInt64
+		err := db.QueryRow(totalQuery, params...).Scan(&totalDevices)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		devices = append(devices, d)
-	}
 
-	response := AtRiskResponse{
-		KPI: AtRiskKPI{
-			TotalDevices:  total,
-			AtRisk:        riskCount,
-			AtRiskPercent: percent,
-		},
-		Devices: devices,
-	}
+		// At risk query
+		riskQuery := fmt.Sprintf(`
+			SELECT COUNT(DISTINCT dh.device_id)
+			FROM device_health dh
+			JOIN bl_score bs ON dh.device_id = bs.device_id
+			%s AND bs.device_bs < 50
+		`, whereClause)
+		var atRisk sql.NullInt64
+		err = db.QueryRow(riskQuery, params...).Scan(&atRisk)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-	c.JSON(http.StatusOK, response)
-})
+		total := int(totalDevices.Int64)
+		riskCount := int(atRisk.Int64)
+		percent := 0.0
+		if total > 0 {
+			percent = float64(riskCount) / float64(total) * 100
+		}
 
+		// At risk devices table query
+		tableQuery := fmt.Sprintf(`
+			SELECT DISTINCT dh.device_id, bs.device_bs
+			FROM device_health dh
+			JOIN bl_score bs ON dh.device_id = bs.device_id
+			%s AND bs.device_bs < 50
+			ORDER BY dh.device_id
+		`, whereClause)
+		rows, err := db.Query(tableQuery, params...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var devices []AtRiskDevice
+		for rows.Next() {
+			var d AtRiskDevice
+			err := rows.Scan(&d.DeviceID, &d.DeviceBS)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			devices = append(devices, d)
+		}
+
+		response := AtRiskResponse{
+			KPI: AtRiskKPI{
+				TotalDevices:  total,
+				AtRisk:        riskCount,
+				AtRiskPercent: percent,
+			},
+			Devices: devices,
+		}
+
+		c.JSON(http.StatusOK, response)
+	})
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal("Error starting server:", err)
