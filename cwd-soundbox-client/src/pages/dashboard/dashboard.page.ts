@@ -4,8 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TabButtonComponent } from '../../app/components/top-bar/tab-button.component';
 import { TransactionCardComponent } from '../../app/components/TransactionCardComponent';
 import { FraudResultsTableComponent } from './fraud-results-table.component';
-import { DeviceHealthComponent, AtRiskDevice } from './device-health.component'; // Import AtRiskDevice
-
+import { DeviceHealthComponent, AtRiskDevice } from './device-health.component';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { map } from 'rxjs/operators';
 
@@ -114,63 +113,6 @@ import { map } from 'rxjs/operators';
         </div>
       </ng-container>
 
-      <ng-container *ngIf="activeTab() === 'Device Health'">
-        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[83px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedTimeFilter()"
-            (ngModelChange)="selectedTimeFilter.set($event)"
-            aria-label="Time Filter"
-          >
-            <option value="">Time</option>
-            <option value="1h">1 Hour</option>
-            <option value="6h">6 Hours</option>
-            <option value="12h">12 Hours</option>
-            <option value="1d">1 Day</option>
-            <option value="1w">1 Week</option>
-            <option value="1m">1 Month</option>
-            <option value="3m">3 Months</option>
-          </select>
-        </div>
-        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedDeviceHealthDeviceID()"
-            (ngModelChange)="selectedDeviceHealthDeviceID.set($event)"
-            aria-label="Device ID Filter"
-          >
-            <option value="">All Devices</option>
-            <option *ngFor="let device of deviceHealthDeviceIDs()" [value]="device">
-              {{ device }}
-            </option>
-          </select>
-        </div>
-        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedChargingStatus()"
-            (ngModelChange)="selectedChargingStatus.set($event)"
-            aria-label="Charging Status Filter"
-          >
-            <option value="">Charging Status</option>
-            <option value="Charging">Charging</option>
-            <option value="Discharging">Discharging</option>
-          </select>
-        </div>
-        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedDeviceHealthStatus()"
-            (ngModelChange)="selectedDeviceHealthStatus.set($event)"
-            aria-label="Device Health Status Filter"
-          >
-            <option value="">Status</option>
-            <option value="Anomaly">Anomaly</option>
-            <option value="Normal">Normal</option>
-          </select>
-        </div>
-      </ng-container>
-
       <button class="ml-auto bg-redCustom text-white text-sm font-normal rounded-md py-2 px-4 flex items-center gap-2 hover:bg-redCustom/90 transition">
         <img src="assets/icons/14.svg" alt="Export Icon" class="w-4 h-4" />
         Export
@@ -233,7 +175,6 @@ import { map } from 'rxjs/operators';
   `
 })
 export class DashboardPageComponent implements OnInit {
-  // Signals for reactive state management
   searchTerm = signal('');
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
@@ -245,7 +186,6 @@ export class DashboardPageComponent implements OnInit {
   selectedDeviceHealthStatus = signal('');
   deviceHealthSearchTerm = signal('');
 
-  // Transaction cards as signal for reactive update
   transactionCards = signal([
     {
       heading: 'Total Transactions',
@@ -270,7 +210,6 @@ export class DashboardPageComponent implements OnInit {
     }
   ]);
 
-  // Device health cards updated to use signals and fetch from API
   deviceHealthCards = signal([
     {
       heading: 'Total Device',
@@ -337,7 +276,6 @@ export class DashboardPageComponent implements OnInit {
               }
             })
           );
-          // Set device health dropdown to at-risk device IDs
           this.deviceHealthDeviceIDs.set(res.at_risk_devices.map(d => d.device_id.toString()));
         },
         error: (err) => console.error('Failed to fetch at risk KPIs', err),
