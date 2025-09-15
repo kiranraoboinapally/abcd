@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
@@ -33,8 +34,6 @@ type FetchDataResponse struct {
 	TotalNullAnomalyCheck int           `json:"total_null_anomaly_check"`
 }
 
-
-
 type DeviceHealth struct {
 	Block        int     `json:"block"`
 	DeviceID     int     `json:"device_id"`
@@ -46,9 +45,24 @@ type DeviceHealth struct {
 	IsAnomaly    string  `json:"is_anomaly"` // "Yes" or "No"
 }
 
+type AtRiskKPI struct {
+	TotalDevices   int     `json:"total_devices"`
+	AtRisk         int     `json:"at_risk"`
+	AtRiskPercent  float64 `json:"at_risk_percent"`
+}
+
+type AtRiskDevice struct {
+	DeviceID int     `json:"device_id"`
+	DeviceBS float64 `json:"device_bs"`
+}
+
+type AtRiskResponse struct {
+	KPI    AtRiskKPI       `json:"kpi"`
+	Devices []AtRiskDevice `json:"at_risk_devices"`
+}
 
 func main() {
-fmt.Println("✅ Go is working!")
+	fmt.Println("✅ Go is working!")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -94,34 +108,34 @@ fmt.Println("✅ Go is working!")
 		var conditions []string
 		var params []interface{}
 		paramCount := 1
-if timeFilter != "" && timeFilter != "all" {
-    now := time.Now()
-    var timeThreshold time.Time
+		if timeFilter != "" && timeFilter != "all" {
+			now := time.Now()
+			var timeThreshold time.Time
 
-    switch timeFilter {
-    case "1h":
-        timeThreshold = now.Add(-1 * time.Hour)
-    case "6h":
-        timeThreshold = now.Add(-6 * time.Hour)
-    case "12h":
-        timeThreshold = now.Add(-12 * time.Hour)
-    case "1d":
-        timeThreshold = now.AddDate(0, 0, -1) // subtract 1 day
-    case "1w":
-        timeThreshold = now.AddDate(0, 0, -7) // subtract 7 days (1 week)
-    case "1m":
-        timeThreshold = now.AddDate(0, -1, 0) // subtract 1 month
-    case "3m":
-        timeThreshold = now.AddDate(0, -3, 0) // subtract 3 months
-    default:
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
-        return
-    }
+			switch timeFilter {
+			case "1h":
+				timeThreshold = now.Add(-1 * time.Hour)
+			case "6h":
+				timeThreshold = now.Add(-6 * time.Hour)
+			case "12h":
+				timeThreshold = now.Add(-12 * time.Hour)
+			case "1d":
+				timeThreshold = now.AddDate(0, 0, -1) // subtract 1 day
+			case "1w":
+				timeThreshold = now.AddDate(0, 0, -7) // subtract 7 days (1 week)
+			case "1m":
+				timeThreshold = now.AddDate(0, -1, 0) // subtract 1 month
+			case "3m":
+				timeThreshold = now.AddDate(0, -3, 0) // subtract 3 months
+			default:
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
+				return
+			}
 
-    conditions = append(conditions, fmt.Sprintf(`txn_ts >= $%d`, paramCount))
-    params = append(params, timeThreshold)
-    paramCount++
-}
+			conditions = append(conditions, fmt.Sprintf(`txn_ts >= $%d`, paramCount))
+			params = append(params, timeThreshold)
+			paramCount++
+		}
 
 		if anomalyCheck != "" && anomalyCheck != "all" {
 			if anomalyCheck == "null" {
@@ -276,42 +290,174 @@ if timeFilter != "" && timeFilter != "all" {
 
 		c.JSON(http.StatusOK, gin.H{"message": "Review updated successfully"})
 	})
-r.GET("/getDeviceHealthData", func(c *gin.Context) {
-    query := `
-        SELECT block, deviceId, CS, start_BL, end_BL, start_time, end_time, is_anomaly
-        FROM device_health
-        ORDER BY block ASC
-    `
 
-    rows, err := db.Query(query)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-    defer rows.Close()
+	// Updated getDeviceHealthData endpoint with changed device_id column name
+	r.GET("/getDeviceHealthData", func(c *gin.Context) {
+		query := `
+			SELECT block, device_id, CS, start_BL, end_BL, start_time, end_time, is_anomaly
+			FROM device_health
+			ORDER BY block ASC
+		`
 
-    var data []DeviceHealth
-    for rows.Next() {
-        var d DeviceHealth
-        var cs int
-        var isAnomaly int
-        var startTime, endTime time.Time
+		rows, err := db.Query(query)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
 
-        err := rows.Scan(&d.Block, &d.DeviceID, &cs, &d.StartBL, &d.EndBL, &startTime, &endTime, &isAnomaly)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
+		var data []DeviceHealth
+		for rows.Next() {
+			var d DeviceHealth
+			var cs int
+			var isAnomaly int
+			var startTime, endTime time.Time
 
-        d.Charging = map[int]string{1: "Charging", 2: "Discharging"}[cs]
-        d.IsAnomaly = map[int]string{0: "No", 1: "Yes"}[isAnomaly]
-        d.StartTime = startTime.Format("2006-01-02 15:04:05")
-        d.EndTime = endTime.Format("2006-01-02 15:04:05")
+			err := rows.Scan(&d.Block, &d.DeviceID, &cs, &d.StartBL, &d.EndBL, &startTime, &endTime, &isAnomaly)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
 
-        data = append(data, d)
-    }
+			d.Charging = map[int]string{1: "Charging", 2: "Discharging"}[cs]
+			d.IsAnomaly = map[int]string{0: "No", 1: "Yes"}[isAnomaly]
+			d.StartTime = startTime.Format("2006-01-02 15:04:05")
+			d.EndTime = endTime.Format("2006-01-02 15:04:05")
 
-    c.JSON(http.StatusOK, gin.H{"device_health": data})
+			data = append(data, d)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"device_health": data})
+	})
+
+	// New endpoint for At Risk KPIs and Devices
+	r.GET("/getAtRiskKPIs", func(c *gin.Context) {
+	timeFilter := c.Query("time")
+	deviceIDStr := c.Query("device_id")
+	searchTerm := c.Query("search")
+
+	var conditions []string
+	var params []interface{}
+	paramCount := 1
+
+	if timeFilter != "" && timeFilter != "all" {
+		now := time.Now()
+		var timeThreshold time.Time
+
+		switch timeFilter {
+		case "1h":
+			timeThreshold = now.Add(-1 * time.Hour)
+		case "6h":
+			timeThreshold = now.Add(-6 * time.Hour)
+		case "12h":
+			timeThreshold = now.Add(-12 * time.Hour)
+		case "1d":
+			timeThreshold = now.AddDate(0, 0, -1)
+		case "1w":
+			timeThreshold = now.AddDate(0, 0, -7)
+		case "1m":
+			timeThreshold = now.AddDate(0, -1, 0)
+		case "3m":
+			timeThreshold = now.AddDate(0, -3, 0)
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
+			return
+		}
+
+		conditions = append(conditions, fmt.Sprintf(`start_time >= $%d`, paramCount))
+		params = append(params, timeThreshold)
+		paramCount++
+	}
+
+	if deviceIDStr != "" && deviceIDStr != "all" {
+		deviceID, err := strconv.ParseInt(deviceIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device_id"})
+			return
+		}
+		conditions = append(conditions, fmt.Sprintf(`device_id = $%d`, paramCount))
+		params = append(params, deviceID)
+		paramCount++
+	}
+
+	if searchTerm != "" {
+		searchPattern := "%" + strings.ToLower(searchTerm) + "%"
+		conditions = append(conditions, fmt.Sprintf(`LOWER(device_id::text) LIKE $%d`, paramCount))
+		params = append(params, searchPattern)
+		paramCount++
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Total devices query
+	totalQuery := fmt.Sprintf(`SELECT COUNT(DISTINCT device_id) FROM device_health%s`, whereClause)
+	var totalDevices sql.NullInt64
+	err := db.QueryRow(totalQuery, params...).Scan(&totalDevices)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// At risk query (no is_anomaly, only bs.device_bs < 50)
+	riskQuery := fmt.Sprintf(`
+		SELECT COUNT(DISTINCT dh.device_id) 
+		FROM device_health dh 
+		JOIN bl_score bs ON dh.device_id = bs.device_id
+		%s AND bs.device_bs < 50
+	`, whereClause)
+	var atRisk sql.NullInt64
+	err = db.QueryRow(riskQuery, params...).Scan(&atRisk)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	total := int(totalDevices.Int64)
+	riskCount := int(atRisk.Int64)
+	percent := 0.0
+	if total > 0 {
+		percent = float64(riskCount) / float64(total) * 100
+	}
+
+	// At risk devices table query (no is_anomaly)
+	tableQuery := fmt.Sprintf(`
+		SELECT DISTINCT dh.device_id, bs.device_bs 
+		FROM device_health dh 
+		JOIN bl_score bs ON dh.device_id = bs.device_id
+		%s AND bs.device_bs < 50
+		ORDER BY dh.device_id
+	`, whereClause)
+	rows, err := db.Query(tableQuery, params...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var devices []AtRiskDevice
+	for rows.Next() {
+		var d AtRiskDevice
+		err := rows.Scan(&d.DeviceID, &d.DeviceBS)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		devices = append(devices, d)
+	}
+
+	response := AtRiskResponse{
+		KPI: AtRiskKPI{
+			TotalDevices:  total,
+			AtRisk:        riskCount,
+			AtRiskPercent: percent,
+		},
+		Devices: devices,
+	}
+
+	c.JSON(http.StatusOK, response)
 })
 
 

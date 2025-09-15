@@ -21,7 +21,7 @@ import { map } from 'rxjs/operators';
     DeviceHealthComponent,
     HttpClientModule
   ],
-  template:  `
+  template: `
     <div class="absolute top-[103px] left-[250px] font-nunito font-medium text-[18px] leading-[33px] text-[#1D1D1D] select-none z-10">
       Intelligent Metrics & Analytics <span class="text-redCustom font-semibold ml-1">(Dashboard)</span>
     </div>
@@ -52,11 +52,7 @@ import { map } from 'rxjs/operators';
           [placeholder]="activeTab() === 'Transactions Anomaly' ? 'Search Transactions...' : 'Search Device Health...'"
           [attr.aria-label]="activeTab() === 'Transactions Anomaly' ? 'Search Transactions' : 'Search Device Health'"
           [ngModel]="activeTab() === 'Transactions Anomaly' ? searchTerm() : deviceHealthSearchTerm()"
-          (ngModelChange)="
-            activeTab() === 'Transactions Anomaly'
-              ? searchTerm.set($event)
-              : deviceHealthSearchTerm.set($event)
-          "
+          (ngModelChange)="activeTab() === 'Transactions Anomaly' ? searchTerm.set($event) : deviceHealthSearchTerm.set($event)"
         />
       </div>
 
@@ -119,6 +115,23 @@ import { map } from 'rxjs/operators';
       </ng-container>
 
       <ng-container *ngIf="activeTab() === 'Device Health'">
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[83px]">
+          <select
+            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
+            [ngModel]="selectedTimeFilter()"
+            (ngModelChange)="selectedTimeFilter.set($event)"
+            aria-label="Time Filter"
+          >
+            <option value="">Time</option>
+            <option value="1h">1 Hour</option>
+            <option value="6h">6 Hours</option>
+            <option value="12h">12 Hours</option>
+            <option value="1d">1 Day</option>
+            <option value="1w">1 Week</option>
+            <option value="1m">1 Month</option>
+            <option value="3m">3 Months</option>
+          </select>
+        </div>
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
           <select
             class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
@@ -194,7 +207,7 @@ import { map } from 'rxjs/operators';
         <div *ngSwitchCase="'Device Health'">
           <div class="flex gap-2 overflow-x-auto pb-2 select-none">
             <app-transaction-card
-              *ngFor="let card of deviceHealthCards"
+              *ngFor="let card of deviceHealthCards()"
               [heading]="card.heading"
               [icon]="card.icon"
               [count]="card.count"
@@ -208,6 +221,7 @@ import { map } from 'rxjs/operators';
             [deviceFilter]="selectedDeviceID()"
             [chargingStatusFilter]="selectedChargingStatus()"
             [statusFilter]="selectedDeviceHealthStatus()"
+            [timeFilter]="selectedTimeFilter()"
           ></app-device-health>
         </div>
 
@@ -217,7 +231,6 @@ import { map } from 'rxjs/operators';
       </ng-container>
     </div>
   `
- 
 })
 export class DashboardPageComponent implements OnInit {
   // Signals for reactive state management
@@ -255,29 +268,30 @@ export class DashboardPageComponent implements OnInit {
     }
   ]);
 
-  deviceHealthCards = [
+  // Device health cards updated to use signals and fetch from API
+  deviceHealthCards = signal([
     {
       heading: 'Total Device',
       icon: 'assets/icons/16.svg',
-      count: 120,
+      count: 0,
       description: 'Total count of all devices used by merchant.',
       countColor: '#4B88A2',
     },
     {
       heading: 'At Risk (Next 3 Month)',
       icon: 'assets/icons/15.svg',
-      count: 7,
-      description: 'Total count of risk detected in device',
+      count: 0,
+      description: 'Total count of risk detected in device.',
       countColor: '#E83B2D',
     },
     {
       heading: 'At Risk %',
       icon: 'assets/icons/15.svg',
-      count: 58.3,
-      description: 'Total count of risk detected (%) in device',
+      count: 0,
+      description: 'Total count of risk detected (%) in device.',
       countColor: '#E83B2D',
     }
-  ];
+  ]);
 
   tabs = [
     { label: 'Transactions Anomaly', icon: 'assets/icons/1.svg' },
@@ -293,6 +307,7 @@ export class DashboardPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchDeviceIDs();
+    this.fetchAtRiskKPIs();
   }
 
   fetchDeviceIDs(): void {
@@ -303,6 +318,25 @@ export class DashboardPageComponent implements OnInit {
       .subscribe({
         next: (ids) => this.deviceIDs.set(ids),
         error: (err) => console.error('Failed to fetch device IDs', err),
+      });
+  }
+
+  fetchAtRiskKPIs(): void {
+    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number } }>('http://localhost:8080/getAtRiskKPIs')
+      .subscribe({
+        next: (res) => {
+          this.deviceHealthCards.update(cards =>
+            cards.map(card => {
+              switch (card.heading) {
+                case 'Total Device': return { ...card, count: res.kpi.total_devices };
+                case 'At Risk (Next 3 Month)': return { ...card, count: res.kpi.at_risk };
+                case 'At Risk %': return { ...card, count: res.kpi.at_risk_percent };
+                default: return card;
+              }
+            })
+          );
+        },
+        error: (err) => console.error('Failed to fetch at risk KPIs', err),
       });
   }
 
