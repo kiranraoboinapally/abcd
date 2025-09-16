@@ -141,7 +141,7 @@ export interface AtRiskDevice {
                 <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
                   <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.block }}</td>
                   <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_id }}</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.charging_status }}</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.charging_status || 'Unknown' }}</td>
                   <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.start_battery_level }}%</td>
                   <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.end_battery_level }}%</td>
                   <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.start_time }}</td>
@@ -231,13 +231,14 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
     const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
     if (queryString) url += `?${queryString}`;
 
-    this.http
-      .get<{ device_health: DeviceHealth[] }>(url)
-      .subscribe({
-        next: (res) => {
-          console.log('Fetched device health data:', res.device_health);
-          this.data.set(res.device_health || []);
-        },
+ this.http
+  .get<{ battery_health: DeviceHealth[] }>(url)
+  .subscribe({
+    next: (res) => {
+      console.log('Fetched device health data:', res.battery_health);
+      this.data.set(res.battery_health || []);
+    },
+
         error: (err) => console.error('Error fetching data:', err),
       });
   }
@@ -257,14 +258,26 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
         next: (res) => {
           console.log('Fetched at risk devices:', res.at_risk_devices);
           this.atRiskData.set(res.at_risk_devices || []);
-          if (res.at_risk_devices && res.at_risk_devices.length === 0) {
-            this.selectedDevice.set(null);
-            this.deviceSelected.emit(null);
-          } else {
-            if (this.selectedDevice() === null && res.at_risk_devices.length > 0) {
-              this.selectedDevice.set(res.at_risk_devices[0].device_id);
-              this.deviceSelected.emit(res.at_risk_devices[0].device_id);
+          const atRiskDevices = this.atRiskData();
+          let newSelected: number | null = null;
+          if (this.deviceFilter && this.deviceFilter !== '') {
+            const deviceId = parseInt(this.deviceFilter, 10);
+            if (!isNaN(deviceId) && atRiskDevices.some(d => d.device_id === deviceId)) {
+              newSelected = deviceId;
             }
+          } else {
+            const current = this.selectedDevice();
+            if (atRiskDevices.length > 0) {
+              if (current !== null && atRiskDevices.some(d => d.device_id === current)) {
+                newSelected = current;
+              } else {
+                newSelected = atRiskDevices[0].device_id;
+              }
+            }
+          }
+          if (newSelected !== this.selectedDevice()) {
+            this.selectedDevice.set(newSelected);
+            this.deviceSelected.emit(newSelected);
           }
         },
         error: (err) => console.error('Error fetching at risk data:', err),
@@ -324,37 +337,37 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
           text: 'Battery Level (%)',
         },
       },
-tooltip: {
-  shared: true,
-  formatter: function () {
-    let s = `<b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x as number)}</b><br/>`;
-    this.points?.forEach((point) => {
-      const deviceId = point.series.options.custom?.device_id;
-      s += `Device ID ${deviceId} - ${point.series.name}: <b>${point.y}%</b><br/>`;
-    });
-    return s;
-  },
+      tooltip: {
+        shared: true,
+        formatter: function () {
+          let s = `<b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x as number)}</b><br/>`;
+          this.points?.forEach((point) => {
+            const deviceId = point.series.options.custom?.device_id;
+            s += `Device ID ${deviceId} - ${point.series.name}: <b>${point.y}%</b><br/>`;
+          });
+          return s;
+        },
       },
       legend: {
         enabled: false,
       },
       series: raw.map((item) => {
-  const startTimestamp = new Date(item.start_time).getTime();
-  const endTimestamp = new Date(item.end_time).getTime();
+        const startTimestamp = new Date(item.start_time).getTime();
+        const endTimestamp = new Date(item.end_time).getTime();
 
-  return {
-    name: `Block ${item.block}`,
-    data: [
-      [startTimestamp, item.start_battery_level],
-      [endTimestamp, item.end_battery_level],
-    ],
-    color: item.end_battery_level < item.start_battery_level ? '#E83B2D' : '#2DA74E',
-    type: 'line',
-    custom: {
-      device_id: item.device_id
-    }
-  };
-}),
+        return {
+          name: `Block ${item.block}`,
+          data: [
+            [startTimestamp, item.start_battery_level],
+            [endTimestamp, item.end_battery_level],
+          ],
+          color: item.end_battery_level < item.start_battery_level ? '#E83B2D' : '#2DA74E',
+          type: 'line',
+          custom: {
+            device_id: item.device_id
+          }
+        };
+      }),
     };
   });
 
