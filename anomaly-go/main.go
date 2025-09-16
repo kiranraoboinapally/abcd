@@ -247,9 +247,9 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"device_ids": deviceIDs})
 	})
 
-	// Get all device IDs from device_health
+	// Get all device IDs from battery_health
 	r.GET("/getDeviceHealthIds", func(c *gin.Context) {
-		query := `SELECT DISTINCT device_id FROM device_health ORDER BY device_id`
+		query := `SELECT DISTINCT device_id FROM battery_health ORDER BY device_id`
 
 		rows, err := db.Query(query)
 		if err != nil {
@@ -324,7 +324,7 @@ func main() {
 
 		query := `
 			SELECT block, device_id, CS, start_BL, end_BL, start_time, end_time, is_anomaly
-			FROM device_health
+			FROM battery_health
 		`
 		var conditions []string
 		var params []interface{}
@@ -413,7 +413,7 @@ func main() {
 			data = append(data, d)
 		}
 
-		c.JSON(http.StatusOK, gin.H{"device_health": data})
+		c.JSON(http.StatusOK, gin.H{"battery_health": data})
 	})
 
 	// New endpoint for At Risk KPIs and Devices
@@ -452,7 +452,7 @@ func main() {
 		// Total devices query - now using JOIN and alias
 		totalQuery := fmt.Sprintf(`
 			SELECT COUNT(DISTINCT dh.device_id)
-			FROM device_health dh
+			FROM battery_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
 			%s
 		`, whereClause)
@@ -466,7 +466,7 @@ func main() {
 		// At risk query
 		riskQuery := fmt.Sprintf(`
 			SELECT COUNT(DISTINCT dh.device_id)
-			FROM device_health dh
+			FROM battery_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
 			%s AND bs.device_bs < 50
 		`, whereClause)
@@ -487,7 +487,7 @@ func main() {
 		// At risk devices table query
 		tableQuery := fmt.Sprintf(`
 			SELECT DISTINCT dh.device_id, bs.device_bs
-			FROM device_health dh
+			FROM battery_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
 			%s AND bs.device_bs < 50
 			ORDER BY dh.device_id
