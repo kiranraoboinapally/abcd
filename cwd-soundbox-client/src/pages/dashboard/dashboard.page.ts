@@ -139,6 +139,7 @@ import { environment } from '../../environments/environment';
             <option value="">Charging Status</option>
             <option value="Charging">Charging</option>
             <option value="Discharging">Discharging</option>
+            <option value="Unknown">Unknown</option>
           </select>
         </div>
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
@@ -199,17 +200,22 @@ import { environment } from '../../environments/environment';
               [countColor]="card.countColor"
               role="listitem"
             ></app-transaction-card>
-            <div *ngIf="showGauge()" class="w-[380px] h-[150px] border-2  border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
-              <div class="flex items-center gap-2 mb-3">
-                <h2 class="text-md font-lg m-0">Battery Level %{{ selectedAtRiskDevice() ? ' (Device ' + selectedAtRiskDevice() + ')' : '' }}</h2>
+
+                        <div class="w-[380px] h-[150px] border-2  border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+              <h2 class="text-md font-lg m-0 text-gray-900">Battery Score{{ selectedAtRiskDevice() ? ' for Device ' + selectedAtRiskDevice() : '' }}</h2>
+              <div class="flex-grow flex items-center justify-center">
+                <highcharts-chart
+                  *ngIf="selectedAtRiskDevice(); else noDeviceSelected"
+                  [Highcharts]="Highcharts"
+                  [options]="gaugeOptions()"
+                  style="width: 100%; height: 100px; display: block;"
+                ></highcharts-chart>
+                 <ng-template #noDeviceSelected>
+                    <div class="text-gray-500">Select a device</div>
+                 </ng-template>
               </div>
-              <highcharts-chart
-                *ngIf="selectedAtRiskDevice()"
-                [Highcharts]="Highcharts"
-                [options]="gaugeOptions()"
-                style="width: 100%; height: 300px; display: block;"
-              ></highcharts-chart>
             </div>
+            
           </div>
           <div class="mt-4">
             <app-device-health
@@ -217,7 +223,6 @@ import { environment } from '../../environments/environment';
               [deviceFilter]="selectedDeviceHealthDeviceID()"
               [chargingStatusFilter]="selectedChargingStatus()"
               [statusFilter]="selectedDeviceHealthStatus()"
-              [showGauge]="false"
               (deviceSelected)="onDeviceSelected($event)"
             ></app-device-health>
           </div>
@@ -231,6 +236,7 @@ import { environment } from '../../environments/environment';
   `
 })
 export class DashboardPageComponent implements OnInit {
+  private apiUrl = environment.apiUrl;
   searchTerm = signal('');
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
@@ -241,57 +247,19 @@ export class DashboardPageComponent implements OnInit {
   selectedChargingStatus = signal('');
   selectedDeviceHealthStatus = signal('');
   deviceHealthSearchTerm = signal('');
-  showGauge = signal(true);
-  atRiskPercent = signal<number>(0);
   selectedAtRiskDevice = signal<number | null>(null);
   atRiskDevices = signal<AtRiskDevice[]>([]);
 
   transactionCards = signal([
-    {
-      heading: 'Total Transactions',
-      icon: 'assets/icons/8.svg',
-      count: 0,
-      description: 'Total count of transactions done by devices.',
-      countColor: '#2DA74E',
-    },
-    {
-      heading: 'Anomaly Detected',
-      icon: 'assets/icons/9.svg',
-      count: 0,
-      description: 'Total count of anomaly detected in devices.',
-      countColor: '#908F8F',
-    },
-    {
-      heading: 'Review Required',
-      icon: 'assets/icons/11.svg',
-      count: 0,
-      description: 'Total count of review required in device.',
-      countColor: '#F6A121',
-    }
+    { heading: 'Total Transactions', icon: 'assets/icons/8.svg', count: 0, description: 'Total count of transactions done by devices.', countColor: '#2DA74E' },
+    { heading: 'Anomaly Detected', icon: 'assets/icons/9.svg', count: 0, description: 'Total count of anomaly detected in devices.', countColor: '#908F8F' },
+    { heading: 'Review Required', icon: 'assets/icons/11.svg', count: 0, description: 'Total count of review required in device.', countColor: '#F6A121' }
   ]);
 
   deviceHealthCards = signal([
-    {
-      heading: 'Total Device',
-      icon: 'assets/icons/16.svg',
-      count: 0,
-      description: 'Total count of all devices used by merchant.',
-      countColor: '#4B88A2',
-    },
-    {
-      heading: 'At Risk ',
-      icon: 'assets/icons/15.svg',
-      count: 0,
-      description: 'Total count of risk detected in device.',
-      countColor: '#E83B2D',
-    },
-    {
-      heading: 'At Risk %',
-      icon: 'assets/icons/15.svg',
-      count: 0,
-      description: 'Percentage of devices at risk.',
-      countColor: '#E83B2D',
-    }
+    { heading: 'Total Device', icon: 'assets/icons/16.svg', count: 0, description: 'Total count of all devices used by merchant.', countColor: '#4B88A2' },
+    { heading: 'At Risk', icon: 'assets/icons/15.svg', count: 0, description: 'Total count of risk detected in device.', countColor: '#E83B2D' },
+    { heading: 'At Risk %', icon: 'assets/icons/15.svg', count: 0, description: 'Percentage of devices at risk.', countColor: '#E83B2D' }
   ]);
 
   tabs = [
@@ -306,12 +274,11 @@ export class DashboardPageComponent implements OnInit {
   Highcharts: typeof Highcharts = Highcharts;
 
   constructor(private http: HttpClient) {
-    // Effect to sync atRiskPercent and filters with API data
+    // **FIX**: Removed the signal that was causing an infinite loop.
+    // This effect now only runs when the filters change.
     effect(() => {
-      // Watch filter signals
       this.deviceHealthSearchTerm();
       this.selectedDeviceHealthDeviceID();
-      this.atRiskPercent();
       this.fetchAtRiskKPIs();
     });
   }
@@ -319,33 +286,34 @@ export class DashboardPageComponent implements OnInit {
   ngOnInit(): void {
     this.fetchDeviceIDs();
     this.fetchDeviceHealthIDs();
-    this.fetchAtRiskKPIs();
   }
 
   fetchDeviceIDs(): void {
- this.http.get<{ device_ids: number[] }>(`${environment.apiUrl}/getAllDeviceIds`)
-      .pipe(
-        map(res => res.device_ids.map(id => id.toString()))
-      )
+    this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getAllDeviceIds`)
+      .pipe(map(res => res.device_ids.map(id => id.toString())))
       .subscribe({
-        next: (ids) => this.deviceIDs.set(ids),
-        error: (err) => console.error('Failed to fetch device IDs', err),
+        next: (ids) => {
+          console.log("Fetched Device IDs for Transactions:", ids);
+          this.deviceIDs.set(ids);
+        },
+        error: (err) => console.error('Failed to fetch transaction device IDs', err),
       });
   }
 
   fetchDeviceHealthIDs(): void {
-  this.http.get<{ device_ids: number[] }>(`${environment.apiUrl}/getDeviceHealthIds`)
-      .pipe(
-        map(res => res.device_ids.map(id => id.toString()))
-      )
+    this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getDeviceHealthIds`)
+      .pipe(map(res => res.device_ids.map(id => id.toString())))
       .subscribe({
-        next: (ids) => this.deviceHealthDeviceIDs.set(ids),
+        next: (ids) => {
+          console.log("Fetched Device IDs for Health:", ids);
+          this.deviceHealthDeviceIDs.set(ids);
+        },
         error: (err) => console.error('Failed to fetch device health IDs', err),
       });
   }
 
   fetchAtRiskKPIs(): void {
-let url = `${environment.apiUrl}/getAtRiskKPIs`;
+    let url = `${this.apiUrl}/getAtRiskKPIs`;
     const params: { [key: string]: string } = {};
     if (this.deviceHealthSearchTerm()) params['search'] = this.deviceHealthSearchTerm();
     if (this.selectedDeviceHealthDeviceID()) params['device_id'] = this.selectedDeviceHealthDeviceID();
@@ -360,29 +328,24 @@ let url = `${environment.apiUrl}/getAtRiskKPIs`;
             cards.map(card => {
               switch (card.heading) {
                 case 'Total Device': return { ...card, count: res.kpi.total_devices };
-                case 'At Risk ': return { ...card, count: res.kpi.at_risk };
-                case 'At Risk %': return { ...card, count: res.kpi.at_risk_percent };
+                case 'At Risk': return { ...card, count: res.kpi.at_risk };
+                // **FIX**: Format the percentage to one decimal place for a cleaner look.
+                case 'At Risk %': return { ...card, count: parseFloat(res.kpi.at_risk_percent.toFixed(1)) };
                 default: return card;
               }
             })
           );
-          this.atRiskPercent.set(res.kpi.at_risk_percent);
           this.atRiskDevices.set(res.at_risk_devices || []);
-          if (res.at_risk_devices && res.at_risk_devices.length > 0 && this.selectedAtRiskDevice() === null) {
-            this.selectedAtRiskDevice.set(res.at_risk_devices[0].device_id);
-          } else if (!res.at_risk_devices || res.at_risk_devices.length === 0) {
-            this.selectedAtRiskDevice.set(null);
-          }
         },
         error: (err) => console.error('Failed to fetch at risk KPIs', err),
       });
   }
-
+  
   onDeviceSelected(deviceId: number | null): void {
     this.selectedAtRiskDevice.set(deviceId);
   }
-
-  onStatsChanged(stats: { total: number; anomaly: number; review: number }) {
+  
+  onStatsChanged(stats: { total: number; anomaly: number; review: number }): void {
     this.transactionCards.update(cards =>
       cards.map(card => {
         switch (card.heading) {
@@ -394,7 +357,7 @@ let url = `${environment.apiUrl}/getAtRiskKPIs`;
       })
     );
   }
-
+  
   onMoreOptions(): void {
     this.showMoreOptions.update(value => !value);
   }

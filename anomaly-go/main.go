@@ -37,7 +37,7 @@ type FetchDataResponse struct {
 type DeviceHealth struct {
 	Block        int     `json:"block"`
 	DeviceID     int     `json:"device_id"`
-	Charging     string  `json:"charging_status"` // 1 = Charging, 2 = Discharging
+	Charging     string  `json:"charging_status"` // 0 = Unknown, 1 = Charging, 2 = Discharging
 	StartBL      float64 `json:"start_battery_level"`
 	EndBL        float64 `json:"end_battery_level"`
 	StartTime    string  `json:"start_time"`
@@ -90,14 +90,43 @@ func main() {
 
 	r := gin.Default()
 
-	// Configure and apply CORS middleware
 	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true // Change in production for security
+	config.AllowAllOrigins = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(config))
 
-	// Fetch data endpoint
+	r.POST("/updateConfidenceThreshold", func(c *gin.Context) {
+		var req struct {
+			ConfidenceThreshold int `json:"confidence_threshold"`
+		}
+
+		if err := c.BindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body. Expected 'confidence_threshold' as an integer."})
+			return
+		}
+
+		updateQuery := `UPDATE thresholds SET threshold_value = $1`
+		res, err := db.Exec(updateQuery, req.ConfidenceThreshold)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database update error: " + err.Error()})
+			return
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking rows affected: " + err.Error()})
+			return
+		}
+		if rowsAffected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No threshold value found to update. The table is empty."})
+			return
+		}
+
+		log.Printf("Confidence threshold updated to %d", req.ConfidenceThreshold)
+		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Confidence threshold updated successfully to %d", req.ConfidenceThreshold)})
+	})
+
 	r.GET("/fetchData", func(c *gin.Context) {
 		timeFilter := c.Query("time")
 		anomalyCheck := c.Query("anomaly_check")
@@ -120,23 +149,21 @@ func main() {
 			case "12h":
 				timeThreshold = now.Add(-12 * time.Hour)
 			case "1d":
-				timeThreshold = now.AddDate(0, 0, -1) // subtract 1 day
+				timeThreshold = now.AddDate(0, 0, -1)
 			case "1w":
-				timeThreshold = now.AddDate(0, 0, -7) // subtract 7 days (1 week)
+				timeThreshold = now.AddDate(0, 0, -7)
 			case "1m":
-				timeThreshold = now.AddDate(0, -1, 0) // subtract 1 month
+				timeThreshold = now.AddDate(0, -1, 0)
 			case "3m":
-				timeThreshold = now.AddDate(0, -3, 0) // subtract 3 months
+				timeThreshold = now.AddDate(0, -3, 0)
 			default:
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time filter"})
 				return
 			}
-
 			conditions = append(conditions, fmt.Sprintf(`txn_ts >= $%d`, paramCount))
 			params = append(params, timeThreshold)
 			paramCount++
 		}
-
 		if anomalyCheck != "" && anomalyCheck != "all" {
 			if anomalyCheck == "null" {
 				conditions = append(conditions, `label IS NULL`)
@@ -146,21 +173,17 @@ func main() {
 				paramCount++
 			}
 		}
-
 		if deviceID != "" && deviceID != "all" {
 			conditions = append(conditions, fmt.Sprintf(`device_id = $%d`, paramCount))
 			params = append(params, deviceID)
 			paramCount++
 		}
-
 		if searchTerm != "" {
 			searchPattern := "%" + strings.ToLower(searchTerm) + "%"
-			// device_id is numeric, cast to text for search
 			conditions = append(conditions, fmt.Sprintf(`(LOWER(txn_id) LIKE $%d OR LOWER(device_id::text) LIKE $%d)`, paramCount, paramCount))
 			params = append(params, searchPattern)
 			paramCount++
 		}
-
 		if len(conditions) > 0 {
 			query += " WHERE " + strings.Join(conditions, " AND ")
 		}
@@ -183,13 +206,9 @@ func main() {
 			}
 			if anomalyCheck.Valid {
 				t.AnomalyCheck = &anomalyCheck.String
-			} else {
-				t.AnomalyCheck = nil
 			}
 			if review.Valid {
 				t.Review = &review.String
-			} else {
-				t.Review = nil
 			}
 			transactions = append(transactions, t)
 		}
@@ -211,7 +230,6 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
 		response := FetchDataResponse{
 			Transactions:          transactions,
 			TotalReviewRequired:   int(totalReviewRequired.Int64),
@@ -219,21 +237,17 @@ func main() {
 			TotalFraud:            int(totalFraud.Int64),
 			TotalNullAnomalyCheck: int(totalNullAnomalyCheck.Int64),
 		}
-
 		c.JSON(http.StatusOK, response)
 	})
 
-	// Get all device IDs from anomaly_results
 	r.GET("/getAllDeviceIds", func(c *gin.Context) {
 		query := `SELECT DISTINCT device_id FROM anomaly_results ORDER BY device_id`
-
 		rows, err := db.Query(query)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		defer rows.Close()
-
 		var deviceIDs []int64
 		for rows.Next() {
 			var deviceID int64
@@ -243,21 +257,17 @@ func main() {
 			}
 			deviceIDs = append(deviceIDs, deviceID)
 		}
-
 		c.JSON(http.StatusOK, gin.H{"device_ids": deviceIDs})
 	})
 
-	// Get all device IDs from battery_health
 	r.GET("/getDeviceHealthIds", func(c *gin.Context) {
-		query := `SELECT DISTINCT device_id FROM battery_health ORDER BY device_id`
-
+		query := `SELECT DISTINCT device_id FROM device_health ORDER BY device_id`
 		rows, err := db.Query(query)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		defer rows.Close()
-
 		var deviceIDs []int64
 		for rows.Next() {
 			var deviceID int64
@@ -267,55 +277,45 @@ func main() {
 			}
 			deviceIDs = append(deviceIDs, deviceID)
 		}
-
 		c.JSON(http.StatusOK, gin.H{"device_ids": deviceIDs})
 	})
 
-	// Update review endpoint - FIXED: updates review column by transaction_id
 	r.POST("/updateReview", func(c *gin.Context) {
 		var req struct {
 			TransactionID string `json:"transaction_id"`
-			Review        string `json:"review"` // Expected "Yes" or "No"
+			Review        string `json:"review"`
 		}
 
 		if err := c.BindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 			return
 		}
-
 		reviewLower := strings.ToLower(req.Review)
 		if reviewLower != "yes" && reviewLower != "no" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Review must be 'Yes' or 'No'"})
 			return
 		}
-
-		newReview := strings.Title(reviewLower) // Capitalize first letter ("Yes" or "No")
-
+		newReview := strings.Title(reviewLower)
 		log.Printf("Updating transaction %s with review %s", req.TransactionID, newReview)
 
 		updateQuery := `UPDATE anomaly_results SET review = $1 WHERE txn_id = $2`
-
 		res, err := db.Exec(updateQuery, newReview, req.TransactionID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database update error: " + err.Error()})
 			return
 		}
-
 		rowsAffected, err := res.RowsAffected()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking rows affected: " + err.Error()})
 			return
 		}
-
 		if rowsAffected == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found"})
 			return
 		}
-
 		c.JSON(http.StatusOK, gin.H{"message": "Review updated successfully"})
 	})
 
-	// Updated getDeviceHealthData endpoint with filters
 	r.GET("/getDeviceHealthData", func(c *gin.Context) {
 		deviceIDStr := c.Query("device_id")
 		chargingStatus := c.Query("charging_status")
@@ -324,7 +324,7 @@ func main() {
 
 		query := `
 			SELECT block, device_id, CS, start_BL, end_BL, start_time, end_time, is_anomaly
-			FROM battery_health
+			FROM device_health
 		`
 		var conditions []string
 		var params []interface{}
@@ -341,15 +341,17 @@ func main() {
 			paramCount++
 		}
 
-		if chargingStatus != "" {
+		if chargingStatus != "" && strings.ToLower(chargingStatus) != "all" {
 			var cs int
 			switch strings.ToLower(chargingStatus) {
 			case "charging":
 				cs = 1
 			case "discharging":
 				cs = 2
+			case "unknown":
+				cs = 0
 			default:
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid charging_status (must be 'Charging' or 'Discharging')"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid charging_status (must be 'Charging', 'Discharging', or 'Unknown')"})
 				return
 			}
 			conditions = append(conditions, fmt.Sprintf(`CS = $%d`, paramCount))
@@ -357,7 +359,7 @@ func main() {
 			paramCount++
 		}
 
-		if isAnomaly != "" {
+		if isAnomaly != "" && strings.ToLower(isAnomaly) != "all" {
 			var anomalyInt int
 			switch strings.ToLower(isAnomaly) {
 			case "yes":
@@ -405,7 +407,7 @@ func main() {
 				return
 			}
 
-			d.Charging = map[int]string{1: "Charging", 2: "Discharging"}[cs]
+			d.Charging = map[int]string{0: "Unknown", 1: "Charging", 2: "Discharging"}[cs]
 			d.IsAnomaly = map[int]string{0: "No", 1: "Yes"}[anomalyInt]
 			d.StartTime = startTime.Format("2006-01-02 15:04:05")
 			d.EndTime = endTime.Format("2006-01-02 15:04:05")
@@ -413,19 +415,27 @@ func main() {
 			data = append(data, d)
 		}
 
-		c.JSON(http.StatusOK, gin.H{"battery_health": data})
+		c.JSON(http.StatusOK, gin.H{"device_health": data})
 	})
 
-	// New endpoint for At Risk KPIs and Devices
 	r.GET("/getAtRiskKPIs", func(c *gin.Context) {
 		deviceIDStr := c.Query("device_id")
 		searchTerm := c.Query("search")
 
+		// Total devices query - THIS IS ALWAYS UNFILTERED
+		totalQuery := `SELECT COUNT(DISTINCT device_id) FROM device_health`
+		var totalDevices sql.NullInt64
+		err := db.QueryRow(totalQuery).Scan(&totalDevices)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching total devices: " + err.Error()})
+			return
+		}
+
+		// Build WHERE clause for filters for the other KPIs
 		var conditions []string
 		var params []interface{}
 		paramCount := 1
 
-		// Add aliases to the conditions where necessary
 		if deviceIDStr != "" && deviceIDStr != "all" {
 			deviceID, err := strconv.ParseInt(deviceIDStr, 10, 64)
 			if err != nil {
@@ -443,58 +453,48 @@ func main() {
 			params = append(params, searchPattern)
 			paramCount++
 		}
-
+		
+		// This clause will be applied to the 'at risk' and 'at risk devices' queries
 		whereClause := ""
 		if len(conditions) > 0 {
 			whereClause = " WHERE " + strings.Join(conditions, " AND ")
 		}
 
-		// Total devices query - now using JOIN and alias
-		totalQuery := fmt.Sprintf(`
-			SELECT COUNT(DISTINCT dh.device_id)
-			FROM battery_health dh
-			JOIN bl_score bs ON dh.device_id = bs.device_id
-			%s
-		`, whereClause)
-		var totalDevices sql.NullInt64
-		err := db.QueryRow(totalQuery, params...).Scan(&totalDevices)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+		// Create the final clause for queries needing both filters and the risk condition
+		riskWhereClause := whereClause
+		if whereClause == "" {
+			riskWhereClause = " WHERE bs.device_bs < 50"
+		} else {
+			riskWhereClause += " AND bs.device_bs < 50"
 		}
 
-		// At risk query
+		// At risk count query (WITH FILTERS)
 		riskQuery := fmt.Sprintf(`
 			SELECT COUNT(DISTINCT dh.device_id)
-			FROM battery_health dh
+			FROM device_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
-			%s AND bs.device_bs < 50
-		`, whereClause)
+			%s
+		`, riskWhereClause)
+
 		var atRisk sql.NullInt64
 		err = db.QueryRow(riskQuery, params...).Scan(&atRisk)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching at risk count: " + err.Error()})
 			return
 		}
 
-		total := int(totalDevices.Int64)
-		riskCount := int(atRisk.Int64)
-		percent := 0.0
-		if total > 0 {
-			percent = float64(riskCount) / float64(total) * 100
-		}
-
-		// At risk devices table query
+		// At risk devices table query (WITH FILTERS)
 		tableQuery := fmt.Sprintf(`
 			SELECT DISTINCT dh.device_id, bs.device_bs
-			FROM battery_health dh
+			FROM device_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
-			%s AND bs.device_bs < 50
+			%s
 			ORDER BY dh.device_id
-		`, whereClause)
+		`, riskWhereClause)
+
 		rows, err := db.Query(tableQuery, params...)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching at risk devices: " + err.Error()})
 			return
 		}
 		defer rows.Close()
@@ -508,6 +508,14 @@ func main() {
 				return
 			}
 			devices = append(devices, d)
+		}
+		
+		total := int(totalDevices.Int64)
+		riskCount := int(atRisk.Int64)
+		percent := 0.0
+		// Use the UNFILTERED total for percentage calculation
+		if total > 0 {
+			percent = float64(riskCount) / float64(total) * 100
 		}
 
 		response := AtRiskResponse{

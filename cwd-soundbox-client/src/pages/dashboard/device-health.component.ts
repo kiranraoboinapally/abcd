@@ -44,7 +44,7 @@ export interface AtRiskDevice {
   imports: [CommonModule, HttpClientModule, HighchartsChartModule],
   template: `
     <div class="flex flex-nowrap gap-2 p-1 bg-gray-100 min-h-[648px]">
-      <div class="w-[400px] h-[648px] bg-white rounded-lg shadow-md flex flex-col box-border">
+      <div class="w-[400px] h-[648px] bg-white rounded-lg shadow-md flex flex-col box-border p-2">
         <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
           At Risk Devices
         </div>
@@ -52,11 +52,11 @@ export interface AtRiskDevice {
           <thead>
             <tr class="h-[38px] bg-gray-200">
               <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Device ID</th>
-              <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Battery Score (%)</th>
+              <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Battery Score</th>
             </tr>
           </thead>
         </table>
-        <div class="w-full h-[510px] overflow-y-auto mt-1 border border-gray-300 rounded">
+        <div class="w-full flex-grow overflow-y-auto mt-1 border border-gray-300 rounded">
           <table class="w-full border-collapse text-sm">
             <tbody>
               <tr *ngFor="let item of paginatedAtRiskData()" 
@@ -66,110 +66,69 @@ export interface AtRiskDevice {
                 <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_id }}</td>
                 <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_bs | number:'1.1-1' }}%</td>
               </tr>
+              <tr *ngIf="atRiskData().length === 0">
+                <td colspan="2" class="text-center text-gray-500 p-4">No at-risk devices found.</td>
+              </tr>
             </tbody>
           </table>
         </div>
         <div class="flex justify-end items-center gap-2 text-xs mt-1 select-none border-t border-gray-300 pt-3 mt-auto">
-          <button
-            (click)="atRiskPrevPage()"
-            [disabled]="atRiskCurrentPage() === 1"
-            class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
-            aria-label="Previous page"
-          >
-            ‹
-          </button>
+          <button (click)="atRiskPrevPage()" [disabled]="atRiskCurrentPage() === 1" class="px-2 py-1 text-lg leading-none rounded hover:bg-blue-100 disabled:text-gray-300">‹</button>
           <span>{{ atRiskStartItem() }} – {{ atRiskEndItem() }} of {{ atRiskTotalItems() }}</span>
-          <button
-            (click)="atRiskNextPage()"
-            [disabled]="atRiskCurrentPage() === atRiskTotalPages()"
-            class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
-            aria-label="Next page"
-          >
-            ›
-          </button>
+          <button (click)="atRiskNextPage()" [disabled]="atRiskCurrentPage() === atRiskTotalPages()" class="px-2 py-1 text-lg leading-none rounded hover:bg-blue-100 disabled:text-gray-300">›</button>
         </div>
       </div>
 
-      <div class="flex flex-col gap-2 w-[1200px] h-[648px] box-border">
-        <div class="flex gap-4 h-[300px]">
-          <div class="flex-1 p-2 bg-white rounded-lg shadow-md flex flex-col items-start">
-            <div class="w-full h-12 flex items-center border-b border-gray-300 mb-3">
-              <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time</h2>
-            </div>
-            <highcharts-chart
-              *ngIf="filteredData().length > 0"
-              [Highcharts]="Highcharts"
-              [options]="chartOptions()"
-              style="width: 100%; height: 200px; display: block;"
-            ></highcharts-chart>
+      <div class="flex flex-col gap-2 flex-grow h-[648px] box-border">
+        <div class="h-[300px] p-2 bg-white rounded-lg shadow-md flex flex-col items-start">
+          <div class="w-full h-12 flex items-center border-b border-gray-300 mb-3">
+            <h2 class="m-0 font-bold text-xl text-gray-700">Battery Status Over Time{{ selectedDevice() ? ' for Device ' + selectedDevice() : '' }}</h2>
           </div>
-
-          <div *ngIf="showGauge" class="w-[520px] p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
-            <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
-              <h2 class="m-0 font-bold text-2xl text-red-600">Current Battery Status{{ selectedDevice() ? ' for Device ' + selectedDevice() : '' }}</h2>
-            </div>
-            <highcharts-chart
-              *ngIf="selectedDevice()"
-              [Highcharts]="Highcharts"
-              [options]="gaugeOptions()"
-              style="width: 100%; height: 200px; display: block;"
-            ></highcharts-chart>
-          </div>
+          <highcharts-chart *ngIf="filteredData().length > 0; else noDataChart" [Highcharts]="Highcharts" [options]="chartOptions()" style="width: 100%; height: 200px; display: block;"></highcharts-chart>
+          <ng-template #noDataChart><div class="flex items-center justify-center w-full h-full text-gray-500">No battery data to display.</div></ng-template>
         </div>
 
         <div class="flex-1 bg-white rounded-lg shadow-md flex flex-col p-2 box-border">
           <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
-            All Device Health Records
+            Device Health Records
           </div>
           <table class="w-full border-collapse text-sm select-none">
             <thead>
               <tr class="h-[38px] bg-gray-200">
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Block</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Device ID</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Charging Status</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Start Battery</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">End Battery</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Start Time</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">End Time</th>
-                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Anomaly</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">Block</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">Device ID</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">Charging Status</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">Start Battery</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">End Battery</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">Start Time</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">End Time</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b">Anomaly</th>
               </tr>
             </thead>
           </table>
-          <div class="w-full mt-1 border border-gray-300 rounded overflow-y-auto" style="height: 192px;">
+          <div class="w-full flex-grow mt-1 border border-gray-300 rounded overflow-y-auto">
             <table class="w-full border-collapse text-sm">
               <tbody>
-                <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.block }}</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_id }}</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.charging_status || 'Unknown' }}</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.start_battery_level }}%</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.end_battery_level }}%</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.start_time }}</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.end_time }}</td>
-                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.is_anomaly }}</td>
+                <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100">
+                  <td class="px-4 py-3 text-center">{{ item.block }}</td>
+                  <td class="px-4 py-3 text-center">{{ item.device_id }}</td>
+                  <td class="px-4 py-3 text-center">{{ item.charging_status }}</td>
+                  <td class="px-4 py-3 text-center">{{ item.start_battery_level }}%</td>
+                  <td class="px-4 py-3 text-center">{{ item.end_battery_level }}%</td>
+                  <td class="px-4 py-3 text-center">{{ item.start_time }}</td>
+                  <td class="px-4 py-3 text-center">{{ item.end_time }}</td>
+                  <td class="px-4 py-3 text-center">{{ item.is_anomaly }}</td>
+                </tr>
+                 <tr *ngIf="filteredData().length === 0">
+                    <td colspan="8" class="text-center text-gray-500 p-4">No health records to display.</td>
                 </tr>
               </tbody>
             </table>
           </div>
-
           <div class="flex justify-end items-center gap-2 text-xs mt-1 select-none border-t border-gray-300 pt-3 mt-auto">
-            <button
-              (click)="prevPage()"
-              [disabled]="currentPage() === 1"
-              class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
-              aria-label="Previous page"
-            >
-              ‹
-            </button>
+             <button (click)="prevPage()" [disabled]="currentPage() === 1" class="px-2 py-1 text-lg leading-none rounded hover:bg-blue-100 disabled:text-gray-300">‹</button>
             <span>{{ startItem() }} – {{ endItem() }} of {{ totalItems() }}</span>
-            <button
-              (click)="nextPage()"
-              [disabled]="currentPage() === totalPages()"
-              class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
-              aria-label="Next page"
-            >
-              ›
-            </button>
+            <button (click)="nextPage()" [disabled]="currentPage() === totalPages()" class="px-2 py-1 text-lg leading-none rounded hover:bg-blue-100 disabled:text-gray-300">›</button>
           </div>
         </div>
       </div>
@@ -182,7 +141,9 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
   data = signal<DeviceHealth[]>([]);
   atRiskData = signal<AtRiskDevice[]>([]);
   selectedDevice = signal<number | null>(null);
-  private perPage = 10;
+  
+  private perPage = 4;
+  private atRiskPerPage = 10;
   currentPage = signal(1);
   atRiskCurrentPage = signal(1);
   Highcharts: typeof Highcharts = Highcharts;
@@ -191,11 +152,17 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
   @Input() deviceFilter: string = '';
   @Input() chargingStatusFilter: string = '';
   @Input() statusFilter: string = '';
-  @Input() showGauge: boolean = false;
   @Output() deviceSelected = new EventEmitter<number | null>();
 
+  // **FIX**: This computed signal correctly filters the main table and chart
+  // based on the device selected either from the filter or the 'At Risk' list.
   filteredData = computed(() => {
-    return this.data();
+    const allData = this.data();
+    const selected = this.selectedDevice();
+    if (selected === null) {
+      return [];
+    }
+    return allData.filter(d => d.device_id === selected);
   });
 
   constructor(private http: HttpClient) {}
@@ -206,18 +173,29 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['deviceFilter'] || changes['chargingStatusFilter'] || changes['statusFilter'] || changes['searchTerm']) {
+    const shouldRefetch = changes['deviceFilter'] || changes['chargingStatusFilter'] || changes['statusFilter'] || changes['searchTerm'];
+    
+    if (shouldRefetch) {
       this.fetchData();
-    }
-    if (changes['deviceFilter'] || changes['searchTerm']) {
       this.fetchAtRiskData();
+      this.currentPage.set(1);
+      this.atRiskCurrentPage.set(1);
+    }
+
+    if (changes['deviceFilter']) {
+      const newFilterValue = changes['deviceFilter'].currentValue;
+      if (newFilterValue) {
+        this.selectDevice(parseInt(newFilterValue, 10));
+      } else {
+        this.selectDevice(null);
+      }
     }
   }
 
-  selectDevice(deviceId: number): void {
+  selectDevice(deviceId: number | null): void {
     this.selectedDevice.set(deviceId);
     this.deviceSelected.emit(deviceId);
-    this.currentPage.set(1); // Reset pagination for records
+    this.currentPage.set(1);
   }
 
   fetchData() {
@@ -231,15 +209,13 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
     const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
     if (queryString) url += `?${queryString}`;
 
- this.http
-  .get<{ battery_health: DeviceHealth[] }>(url)
-  .subscribe({
-    next: (res) => {
-      console.log('Fetched device health data:', res.battery_health);
-      this.data.set(res.battery_health || []);
-    },
-
-        error: (err) => console.error('Error fetching data:', err),
+    this.http
+      .get<{ device_health: DeviceHealth[] }>(url)
+      .subscribe({
+        next: (res) => {
+          this.data.set(res.device_health || []);
+        },
+        error: (err) => console.error('Error fetching device health data:', err),
       });
   }
 
@@ -256,186 +232,57 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
       .get<{ kpi: any; at_risk_devices: AtRiskDevice[] }>(url)
       .subscribe({
         next: (res) => {
-          console.log('Fetched at risk devices:', res.at_risk_devices);
-          this.atRiskData.set(res.at_risk_devices || []);
-          const atRiskDevices = this.atRiskData();
-          let newSelected: number | null = null;
-          if (this.deviceFilter && this.deviceFilter !== '') {
-            const deviceId = parseInt(this.deviceFilter, 10);
-            if (!isNaN(deviceId) && atRiskDevices.some(d => d.device_id === deviceId)) {
-              newSelected = deviceId;
-            }
-          } else {
-            const current = this.selectedDevice();
-            if (atRiskDevices.length > 0) {
-              if (current !== null && atRiskDevices.some(d => d.device_id === current)) {
-                newSelected = current;
-              } else {
-                newSelected = atRiskDevices[0].device_id;
-              }
-            }
-          }
-          if (newSelected !== this.selectedDevice()) {
-            this.selectedDevice.set(newSelected);
-            this.deviceSelected.emit(newSelected);
+          const atRiskDevices = res.at_risk_devices || [];
+          this.atRiskData.set(atRiskDevices);
+          
+          if (!this.deviceFilter && this.selectedDevice() === null && atRiskDevices.length > 0) {
+              this.selectDevice(atRiskDevices[0].device_id);
           }
         },
         error: (err) => console.error('Error fetching at risk data:', err),
       });
   }
 
+  // Pagination for Main Health Records Table
   totalItems = computed(() => this.filteredData().length);
   paginatedData = computed(() => {
     const start = (this.currentPage() - 1) * this.perPage;
     return this.filteredData().slice(start, start + this.perPage);
   });
-  totalPages = computed(() => Math.ceil(this.totalItems() / this.perPage));
+  totalPages = computed(() => Math.ceil(this.totalItems() / this.perPage) || 1);
   nextPage = () => this.currentPage.update((p) => Math.min(p + 1, this.totalPages()));
   prevPage = () => this.currentPage.update((p) => Math.max(p - 1, 1));
-  startItem = computed(() =>
-    this.totalItems() === 0 ? 0 : (this.currentPage() - 1) * this.perPage + 1
-  );
+  startItem = computed(() => this.totalItems() === 0 ? 0 : (this.currentPage() - 1) * this.perPage + 1);
   endItem = computed(() => Math.min(this.currentPage() * this.perPage, this.totalItems()));
 
+  // Pagination for At Risk Devices Table
   atRiskTotalItems = computed(() => this.atRiskData().length);
   paginatedAtRiskData = computed(() => {
-    const start = (this.atRiskCurrentPage() - 1) * this.perPage;
-    return this.atRiskData().slice(start, start + this.perPage);
+    const start = (this.atRiskCurrentPage() - 1) * this.atRiskPerPage;
+    return this.atRiskData().slice(start, start + this.atRiskPerPage);
   });
-  atRiskTotalPages = computed(() => Math.ceil(this.atRiskTotalItems() / this.perPage));
+  atRiskTotalPages = computed(() => Math.ceil(this.atRiskTotalItems() / this.atRiskPerPage) || 1);
   atRiskNextPage = () => this.atRiskCurrentPage.update((p) => Math.min(p + 1, this.atRiskTotalPages()));
   atRiskPrevPage = () => this.atRiskCurrentPage.update((p) => Math.max(p - 1, 1));
-  atRiskStartItem = computed(() =>
-    this.atRiskTotalItems() === 0 ? 0 : (this.atRiskCurrentPage() - 1) * this.perPage + 1
-  );
+  atRiskStartItem = computed(() => this.atRiskTotalItems() === 0 ? 0 : (this.atRiskCurrentPage() - 1) * this.atRiskPerPage + 1);
   atRiskEndItem = computed(() => Math.min(this.atRiskCurrentPage() * this.perPage, this.atRiskTotalItems()));
 
-  chartOptions = computed((): Highcharts.Options => {
-    const raw = this.filteredData();
-
-    return {
-      accessibility: {
-        enabled: false,
-      },
-      chart: {
-        type: 'line',
-        height: 200,
-      },
-      title: {
-        text: '',
-      },
-      xAxis: {
-        type: 'datetime',
-        title: {
-          text: 'Time',
-        },
-      },
-      yAxis: {
-        min: 0,
-        max: 100,
-        title: {
-          text: 'Battery Level (%)',
-        },
-      },
-      tooltip: {
-        shared: true,
-        formatter: function () {
-          let s = `<b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x as number)}</b><br/>`;
-          this.points?.forEach((point) => {
-            const deviceId = point.series.options.custom?.device_id;
-            s += `Device ID ${deviceId} - ${point.series.name}: <b>${point.y}%</b><br/>`;
-          });
-          return s;
-        },
-      },
-      legend: {
-        enabled: false,
-      },
-      series: raw.map((item) => {
-        const startTimestamp = new Date(item.start_time).getTime();
-        const endTimestamp = new Date(item.end_time).getTime();
-
-        return {
-          name: `Block ${item.block}`,
-          data: [
-            [startTimestamp, item.start_battery_level],
-            [endTimestamp, item.end_battery_level],
-          ],
-          color: item.end_battery_level < item.start_battery_level ? '#E83B2D' : '#2DA74E',
-          type: 'line',
-          custom: {
-            device_id: item.device_id
-          }
-        };
-      }),
-    };
-  });
-
-  gaugeOptions = computed((): Highcharts.Options => {
-    const selected = this.selectedDevice();
-    const bs = this.atRiskData().find(item => item.device_id === selected)?.device_bs || 0;
-
-    return {
-      chart: {
-        type: 'solidgauge',
-        height: 200,
-      },
-      title: {
-        text: '',
-      },
-      pane: {
-        center: ['50%', '85%'],
-        size: '140%',
-        startAngle: -90,
-        endAngle: 90,
-        background: [{
-          backgroundColor: '#EEE',
-          innerRadius: '60%',
-          outerRadius: '100%',
-          shape: 'arc'
-        }]
-      },
-      tooltip: {
-        enabled: false
-      },
-      yAxis: {
-        stops: [
-          [0.5, '#DF5353'], // red
-          [0.8, '#DDDF0D'], // yellow
-          [1.0, '#55BF3B']  // green
-        ],
-        lineWidth: 0,
-        tickAmount: 2,
-        min: 0,
-        max: 100,
-        title: {
-          y: -70,
-          text: selected ? `Battery Score (Device ${selected})` : 'Battery Score'
-        },
-        labels: {
-          y: 16
-        }
-      },
-      plotOptions: {
-        solidgauge: {
-          dataLabels: {
-            y: 5,
-            borderWidth: 0,
-            useHTML: true
-          }
-        }
-      },
-      series: [{
-        type: 'solidgauge',
-        name: 'Battery Score',
-        data: [bs],
-        dataLabels: {
-          format: '<div style="text-align:center"><span style="font-size:25px">{y:.1f}</span><br/><span style="font-size:12px;opacity:0.4">%</span></div>'
-        },
-        tooltip: {
-          valueSuffix: ' %'
-        }
-      }]
-    };
-  });
+  // Highcharts Options
+  chartOptions = computed((): Highcharts.Options => ({
+    chart: { type: 'line', height: 200 },
+    title: { text: '' },
+    xAxis: { type: 'datetime', title: { text: 'Time' } },
+    yAxis: { min: 0, max: 100, title: { text: 'Battery Level (%)' } },
+    tooltip: { shared: true },
+    legend: { enabled: false },
+    series: this.filteredData().map(item => ({
+      name: `Block ${item.block}`,
+      data: [
+        [new Date(item.start_time).getTime(), item.start_battery_level],
+        [new Date(item.end_time).getTime(), item.end_battery_level],
+      ],
+      color: item.is_anomaly === 'Yes' ? '#E83B2D' : (item.end_battery_level < item.start_battery_level ? '#F6A121' : '#2DA74E'),
+      type: 'line',
+    })),
+  }));
 }
