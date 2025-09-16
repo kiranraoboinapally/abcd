@@ -324,33 +324,37 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
           text: 'Battery Level (%)',
         },
       },
-      tooltip: {
-        shared: true,
-        formatter: function () {
-          let s = `<b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x as number)}</b><br/>`;
-          this.points?.forEach((point) => {
-            s += `${point.series.name}: <b>${point.y}%</b><br/>`;
-          });
-          return s;
-        },
+tooltip: {
+  shared: true,
+  formatter: function () {
+    let s = `<b>${Highcharts.dateFormat('%Y-%m-%d %H:%M', this.x as number)}</b><br/>`;
+    this.points?.forEach((point) => {
+      const deviceId = point.series.options.custom?.device_id;
+      s += `Device ID ${deviceId} - ${point.series.name}: <b>${point.y}%</b><br/>`;
+    });
+    return s;
+  },
       },
       legend: {
         enabled: false,
       },
       series: raw.map((item) => {
-        const startTimestamp = new Date(item.start_time).getTime();
-        const endTimestamp = new Date(item.end_time).getTime();
+  const startTimestamp = new Date(item.start_time).getTime();
+  const endTimestamp = new Date(item.end_time).getTime();
 
-        return {
-          name: `Block ${item.block}`,
-          data: [
-            [startTimestamp, item.start_battery_level],
-            [endTimestamp, item.end_battery_level],
-          ],
-          color: item.end_battery_level < item.start_battery_level ? '#E83B2D' : '#2DA74E',
-          type: 'line',
-        };
-      }),
+  return {
+    name: `Block ${item.block}`,
+    data: [
+      [startTimestamp, item.start_battery_level],
+      [endTimestamp, item.end_battery_level],
+    ],
+    color: item.end_battery_level < item.start_battery_level ? '#E83B2D' : '#2DA74E',
+    type: 'line',
+    custom: {
+      device_id: item.device_id
+    }
+  };
+}),
     };
   });
 
