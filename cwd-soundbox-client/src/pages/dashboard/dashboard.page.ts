@@ -1,13 +1,14 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TabButtonComponent } from '../../app/components/top-bar/tab-button.component';
 import { TransactionCardComponent } from '../../app/components/TransactionCardComponent';
 import { FraudResultsTableComponent } from './fraud-results-table.component';
-import { DeviceHealthComponent } from './device-health.component';
-
+import { DeviceHealthComponent, AtRiskDevice } from './device-health.component';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { map } from 'rxjs/operators';
+import { HighchartsChartModule } from 'highcharts-angular';
+import * as Highcharts from 'highcharts';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -19,7 +20,8 @@ import { map } from 'rxjs/operators';
     TransactionCardComponent,
     FraudResultsTableComponent,
     DeviceHealthComponent,
-    HttpClientModule
+    HttpClientModule,
+    HighchartsChartModule
   ],
   template: `
     <div class="absolute top-[103px] left-[250px] font-nunito font-medium text-[18px] leading-[33px] text-[#1D1D1D] select-none z-10">
@@ -79,8 +81,6 @@ import { map } from 'rxjs/operators';
           >
             <option value="">Time</option>
             <option value="1h">1 Hour</option>
-            <option value="6h">6 Hours</option>
-            <option value="12h">12 Hours</option>
             <option value="1d">1 Day</option>
             <option value="1w">1 Week</option>
             <option value="1m">1 Month</option>
@@ -198,13 +198,28 @@ import { map } from 'rxjs/operators';
               [countColor]="card.countColor"
               role="listitem"
             ></app-transaction-card>
+            <div *ngIf="showGauge()" class="w-[380px] h-[150px] border-2  border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+              <div class="flex items-center gap-2 mb-3">
+                <h2 class="text-md font-md  m-0">At Risk %{{ selectedAtRiskDevice() ? ' (Device ' + selectedAtRiskDevice() + ')' : '' }}</h2>
+              </div>
+              <highcharts-chart
+                *ngIf="selectedAtRiskDevice()"
+                [Highcharts]="Highcharts"
+                [options]="gaugeOptions()"
+                style="width: 100%; height: 300px; display: block;"
+              ></highcharts-chart>
+            </div>
           </div>
-          <app-device-health
-            [searchTerm]="deviceHealthSearchTerm()"
-            [deviceFilter]="selectedDeviceHealthDeviceID()"
-            [chargingStatusFilter]="selectedChargingStatus()"
-            [statusFilter]="selectedDeviceHealthStatus()"
-          ></app-device-health>
+          <div class="mt-4">
+            <app-device-health
+              [searchTerm]="deviceHealthSearchTerm()"
+              [deviceFilter]="selectedDeviceHealthDeviceID()"
+              [chargingStatusFilter]="selectedChargingStatus()"
+              [statusFilter]="selectedDeviceHealthStatus()"
+              [showGauge]="false"
+              (deviceSelected)="onDeviceSelected($event)"
+            ></app-device-health>
+          </div>
         </div>
 
         <div *ngSwitchDefault>
@@ -215,7 +230,6 @@ import { map } from 'rxjs/operators';
   `
 })
 export class DashboardPageComponent implements OnInit {
-  // Signals for reactive state management
   searchTerm = signal('');
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
@@ -226,8 +240,11 @@ export class DashboardPageComponent implements OnInit {
   selectedChargingStatus = signal('');
   selectedDeviceHealthStatus = signal('');
   deviceHealthSearchTerm = signal('');
+  showGauge = signal(true);
+  atRiskPercent = signal<number>(0);
+  selectedAtRiskDevice = signal<number | null>(null);
+  atRiskDevices = signal<AtRiskDevice[]>([]);
 
-  // Transaction cards as signal for reactive update
   transactionCards = signal([
     {
       heading: 'Total Transactions',
@@ -252,7 +269,6 @@ export class DashboardPageComponent implements OnInit {
     }
   ]);
 
-  // Device health cards updated to use signals and fetch from API
   deviceHealthCards = signal([
     {
       heading: 'Total Device',
@@ -262,7 +278,7 @@ export class DashboardPageComponent implements OnInit {
       countColor: '#4B88A2',
     },
     {
-      heading: 'At Risk (Next 3 Month)',
+      heading: 'At Risk ',
       icon: 'assets/icons/15.svg',
       count: 0,
       description: 'Total count of risk detected in device.',
@@ -272,7 +288,7 @@ export class DashboardPageComponent implements OnInit {
       heading: 'At Risk %',
       icon: 'assets/icons/15.svg',
       count: 0,
-      description: 'Total count of risk detected (%) in device.',
+      description: 'Percentage of devices at risk.',
       countColor: '#E83B2D',
     }
   ]);
@@ -286,8 +302,14 @@ export class DashboardPageComponent implements OnInit {
   ];
   activeTab = signal(this.tabs[0].label);
   showMoreOptions = signal(false);
+  Highcharts: typeof Highcharts = Highcharts;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    // Effect to sync atRiskPercent with API data
+    effect(() => {
+      this.fetchAtRiskKPIs();
+    });
+  }
 
   ngOnInit(): void {
     this.fetchDeviceIDs();
@@ -318,22 +340,33 @@ export class DashboardPageComponent implements OnInit {
   }
 
   fetchAtRiskKPIs(): void {
-    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number } }>('http://localhost:8080/getAtRiskKPIs')
+    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number }; at_risk_devices: AtRiskDevice[] }>('http://localhost:8080/getAtRiskKPIs')
       .subscribe({
         next: (res) => {
           this.deviceHealthCards.update(cards =>
             cards.map(card => {
               switch (card.heading) {
                 case 'Total Device': return { ...card, count: res.kpi.total_devices };
-                case 'At Risk (Next 3 Month)': return { ...card, count: res.kpi.at_risk };
+                case 'At Risk ': return { ...card, count: res.kpi.at_risk };
                 case 'At Risk %': return { ...card, count: res.kpi.at_risk_percent };
                 default: return card;
               }
             })
           );
+          this.atRiskPercent.set(res.kpi.at_risk_percent);
+          this.atRiskDevices.set(res.at_risk_devices || []);
+          if (res.at_risk_devices && res.at_risk_devices.length > 0 && this.selectedAtRiskDevice() === null) {
+            this.selectedAtRiskDevice.set(res.at_risk_devices[0].device_id);
+          } else if (!res.at_risk_devices || res.at_risk_devices.length === 0) {
+            this.selectedAtRiskDevice.set(null);
+          }
         },
         error: (err) => console.error('Failed to fetch at risk KPIs', err),
       });
+  }
+
+  onDeviceSelected(deviceId: number | null): void {
+    this.selectedAtRiskDevice.set(deviceId);
   }
 
   onStatsChanged(stats: { total: number; anomaly: number; review: number }) {
@@ -352,6 +385,80 @@ export class DashboardPageComponent implements OnInit {
   onMoreOptions(): void {
     this.showMoreOptions.update(value => !value);
   }
+
+  gaugeOptions = computed((): Highcharts.Options => {
+    const deviceId = this.selectedAtRiskDevice();
+    const bs = this.atRiskDevices().find(item => item.device_id === deviceId)?.device_bs || 0;
+
+    return {
+      chart: {
+        type: 'solidgauge',
+        height: 100
+      },
+      title: {
+        text: ''
+      },
+      pane: {
+        center: ['50%', '50%'],
+        size: '125%',
+        startAngle: -90,
+        endAngle: 90,
+        background: [
+          {
+            backgroundColor: '#EEE',
+            innerRadius: '60%',
+            outerRadius: '100%',
+            shape: 'arc'
+          }
+        ]
+      },
+      tooltip: {
+        enabled: false
+      },
+      yAxis: {
+        stops: [
+          [0.5, '#DF5353'], // red
+          [0.8, '#DDDF0D'], // yellow
+          [1.0, '#55BF3B']  // green
+        ],
+        lineWidth: 0,
+        tickAmount: 2,
+        min: 0,
+        max: 100,
+        title: {
+          text: ''
+        },
+        labels: {
+          y: 10,
+          style: {
+            fontSize: '10px'
+          }
+        }
+      },
+      plotOptions: {
+        solidgauge: {
+          dataLabels: {
+            y: 0,
+            borderWidth: 0,
+            useHTML: true
+          }
+        }
+      },
+      series: [
+        {
+          type: 'solidgauge',
+          name: 'Battery Score',
+          data: [bs],
+          dataLabels: {
+            format: '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>'
+          },
+          tooltip: {
+            valueSuffix: ' %'
+          }
+        }
+      ]
+    };
+  });
 
   get transactionCardsList() {
     return this.transactionCards();
