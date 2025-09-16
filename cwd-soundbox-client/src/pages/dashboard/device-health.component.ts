@@ -51,8 +51,8 @@ export interface AtRiskDevice {
         <table class="w-full border-collapse text-sm select-none">
           <thead>
             <tr class="h-[38px] bg-gray-200">
-              <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Device ID</th>
-              <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Battery Score (%)</th>
+              <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Device ID</th>
+              <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Battery Score (%)</th>
             </tr>
           </thead>
         </table>
@@ -63,38 +63,36 @@ export interface AtRiskDevice {
                   class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors cursor-pointer"
                   [class.bg-blue-100]="item.device_id === selectedDevice()"
                   (click)="selectDevice(item.device_id)">
-                <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.device_id }}</td>
-                <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.device_bs | number:'1.1-1' }}%</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_id }}</td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_bs | number:'1.1-1' }}%</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="flex justify-between items-center pt-3 border-t border-gray-300 mt-auto">
-          <div class="text-sm text-gray-600 select-none">
-            Showing {{ atRiskStartItem() }} to {{ atRiskEndItem() }} of {{ atRiskTotalItems() }} items
-          </div>
-          <div class="flex gap-2">
-            <button
-              (click)="atRiskPrevPage()"
-              [disabled]="atRiskCurrentPage() === 1"
-              class="px-4 py-2 border border-gray-300 bg-gray-100 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              (click)="atRiskNextPage()"
-              [disabled]="atRiskCurrentPage() === atRiskTotalPages()"
-              class="px-4 py-2 border border-gray-300 bg-gray-100 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
+        <div class="flex justify-end items-center gap-2 text-xs mt-1 select-none border-t border-gray-300 pt-3 mt-auto">
+          <button
+            (click)="atRiskPrevPage()"
+            [disabled]="atRiskCurrentPage() === 1"
+            class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+          <span>{{ atRiskStartItem() }} – {{ atRiskEndItem() }} of {{ atRiskTotalItems() }}</span>
+          <button
+            (click)="atRiskNextPage()"
+            [disabled]="atRiskCurrentPage() === atRiskTotalPages()"
+            class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
+            aria-label="Next page"
+          >
+            ›
+          </button>
         </div>
       </div>
 
       <div class="flex flex-col gap-2 w-[1200px] h-[648px] box-border">
         <div class="flex gap-4 h-[300px]">
-<div class="flex-1 p-2 bg-white rounded-lg shadow-md flex flex-col items-start">
+          <div class="flex-1 p-2 bg-white rounded-lg shadow-md flex flex-col items-start">
             <div class="w-full h-12 flex items-center border-b border-gray-300 mb-3">
               <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time</h2>
             </div>
@@ -126,54 +124,52 @@ export interface AtRiskDevice {
           <table class="w-full border-collapse text-sm select-none">
             <thead>
               <tr class="h-[38px] bg-gray-200">
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Block</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Device ID</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Charging Status</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Start Battery</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">End Battery</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Start Time</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">End Time</th>
-                <th class="p-3 text-left font-bold text-gray-800 border-b border-gray-400">Anomaly</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Block</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Device ID</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Charging Status</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Start Battery</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">End Battery</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Start Time</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">End Time</th>
+                <th class="p-3 text-center font-bold text-gray-800 border-b border-gray-400">Anomaly</th>
               </tr>
             </thead>
           </table>
           <div class="w-full mt-1 border border-gray-300 rounded overflow-y-auto" style="height: 192px;">
-  <table class="w-full border-collapse text-sm">
-    <tbody>
-      <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.block }}</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.device_id }}</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.charging_status }}</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_battery_level }}%</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_battery_level }}%</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_time }}</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_time }}</td>
-        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.is_anomaly }}</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+            <table class="w-full border-collapse text-sm">
+              <tbody>
+                <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.block }}</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.device_id }}</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.charging_status }}</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.start_battery_level }}%</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.end_battery_level }}%</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.start_time }}</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.end_time }}</td>
+                  <td class="px-4 py-3 text-center whitespace-nowrap">{{ item.is_anomaly }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-          <div class="flex justify-between items-center pt-3 border-t border-gray-300 mt-auto">
-            <div class="text-sm text-gray-600 select-none">
-              Showing {{ startItem() }} to {{ endItem() }} of {{ totalItems() }} items
-            </div>
-            <div class="flex gap-2">
-              <button
-                (click)="prevPage()"
-                [disabled]="currentPage() === 1"
-                class="px-4 py-2 border border-gray-300 bg-gray-100 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                (click)="nextPage()"
-                [disabled]="currentPage() === totalPages()"
-                class="px-4 py-2 border border-gray-300 bg-gray-100 text-sm rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
+          <div class="flex justify-end items-center gap-2 text-xs mt-1 select-none border-t border-gray-300 pt-3 mt-auto">
+            <button
+              (click)="prevPage()"
+              [disabled]="currentPage() === 1"
+              class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
+              aria-label="Previous page"
+            >
+              ‹
+            </button>
+            <span>{{ startItem() }} – {{ endItem() }} of {{ totalItems() }}</span>
+            <button
+              (click)="nextPage()"
+              [disabled]="currentPage() === totalPages()"
+              class="bg-transparent border-none text-lg text-blue-600 p-0.5 rounded hover:bg-blue-100 disabled:text-gray-300 disabled:cursor-not-allowed"
+              aria-label="Next page"
+            >
+              ›
+            </button>
           </div>
         </div>
       </div>
