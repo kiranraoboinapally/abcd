@@ -261,7 +261,7 @@ func main() {
 	})
 
 	r.GET("/getDeviceHealthIds", func(c *gin.Context) {
-		query := `SELECT DISTINCT device_id FROM device_health ORDER BY device_id`
+		query := `SELECT DISTINCT device_id FROM battery_health ORDER BY device_id`
 		rows, err := db.Query(query)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -324,7 +324,7 @@ func main() {
 
 		query := `
 			SELECT block, device_id, CS, start_BL, end_BL, start_time, end_time, is_anomaly
-			FROM device_health
+			FROM battery_health
 		`
 		var conditions []string
 		var params []interface{}
@@ -415,7 +415,7 @@ func main() {
 			data = append(data, d)
 		}
 
-		c.JSON(http.StatusOK, gin.H{"device_health": data})
+		c.JSON(http.StatusOK, gin.H{"battery_health": data})
 	})
 
 	r.GET("/getAtRiskKPIs", func(c *gin.Context) {
@@ -423,7 +423,7 @@ func main() {
 		searchTerm := c.Query("search")
 
 		// Total devices query - THIS IS ALWAYS UNFILTERED
-		totalQuery := `SELECT COUNT(DISTINCT device_id) FROM device_health`
+		totalQuery := `SELECT COUNT(DISTINCT device_id) FROM battery_health`
 		var totalDevices sql.NullInt64
 		err := db.QueryRow(totalQuery).Scan(&totalDevices)
 		if err != nil {
@@ -471,7 +471,7 @@ func main() {
 		// At risk count query (WITH FILTERS)
 		riskQuery := fmt.Sprintf(`
 			SELECT COUNT(DISTINCT dh.device_id)
-			FROM device_health dh
+			FROM battery_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
 			%s
 		`, riskWhereClause)
@@ -486,7 +486,7 @@ func main() {
 		// At risk devices table query (WITH FILTERS)
 		tableQuery := fmt.Sprintf(`
 			SELECT DISTINCT dh.device_id, bs.device_bs
-			FROM device_health dh
+			FROM battery_health dh
 			JOIN bl_score bs ON dh.device_id = bs.device_id
 			%s
 			ORDER BY dh.device_id

@@ -210,10 +210,10 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
     if (queryString) url += `?${queryString}`;
 
     this.http
-      .get<{ device_health: DeviceHealth[] }>(url)
+      .get<{ battery_health: DeviceHealth[] }>(url)
       .subscribe({
         next: (res) => {
-          this.data.set(res.device_health || []);
+          this.data.set(res.battery_health || []);
         },
         error: (err) => console.error('Error fetching device health data:', err),
       });
@@ -273,16 +273,28 @@ export class DeviceHealthComponent implements OnInit, OnChanges {
     title: { text: '' },
     xAxis: { type: 'datetime', title: { text: 'Time' } },
     yAxis: { min: 0, max: 100, title: { text: 'Battery Level (%)' } },
-    tooltip: { shared: true },
+    tooltip: {
+      headerFormat: '<span style="font-size: 12px">Time: {point.key:%e %b %Y, %H:%M}</span><br/>',
+      pointFormat: '<b>Device ID:</b> {series.options.custom.deviceId}<br/>' +
+                   '<b>Block:</b> {series.name}<br/>' +
+                   '<b>Status:</b> {series.options.custom.chargingStatus}<br/>' +
+                   '<b>Battery:</b> {point.y:.1f}%',
+      useHTML: true,
+    },
     legend: { enabled: false },
     series: this.filteredData().map(item => ({
-      name: `Block ${item.block}`,
+      name: `${item.block}`, // Using just the block number as the series name
+      type: 'line',
       data: [
         [new Date(item.start_time).getTime(), item.start_battery_level],
         [new Date(item.end_time).getTime(), item.end_battery_level],
       ],
+      // Custom data to be used in the tooltip
+      custom: {
+        deviceId: item.device_id,
+        chargingStatus: item.charging_status,
+      },
       color: item.is_anomaly === 'Yes' ? '#E83B2D' : (item.end_battery_level < item.start_battery_level ? '#F6A121' : '#2DA74E'),
-      type: 'line',
     })),
   }));
 }
