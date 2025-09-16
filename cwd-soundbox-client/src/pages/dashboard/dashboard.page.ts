@@ -200,7 +200,7 @@ import * as Highcharts from 'highcharts';
             ></app-transaction-card>
             <div *ngIf="showGauge()" class="w-[380px] h-[150px] border-2  border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
               <div class="flex items-center gap-2 mb-3">
-                <h2 class="text-md font-lg m-0">Batterly Level %{{ selectedAtRiskDevice() ? ' (Device ' + selectedAtRiskDevice() + ')' : '' }}</h2>
+                <h2 class="text-md font-lg m-0">Battery Level %{{ selectedAtRiskDevice() ? ' (Device ' + selectedAtRiskDevice() + ')' : '' }}</h2>
               </div>
               <highcharts-chart
                 *ngIf="selectedAtRiskDevice()"
@@ -305,8 +305,12 @@ export class DashboardPageComponent implements OnInit {
   Highcharts: typeof Highcharts = Highcharts;
 
   constructor(private http: HttpClient) {
-    // Effect to sync atRiskPercent with API data
+    // Effect to sync atRiskPercent and filters with API data
     effect(() => {
+      // Watch filter signals
+      this.deviceHealthSearchTerm();
+      this.selectedDeviceHealthDeviceID();
+      this.atRiskPercent();
       this.fetchAtRiskKPIs();
     });
   }
@@ -340,7 +344,15 @@ export class DashboardPageComponent implements OnInit {
   }
 
   fetchAtRiskKPIs(): void {
-    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number }; at_risk_devices: AtRiskDevice[] }>('http://localhost:8080/getAtRiskKPIs')
+    let url = 'http://localhost:8080/getAtRiskKPIs';
+    const params: { [key: string]: string } = {};
+    if (this.deviceHealthSearchTerm()) params['search'] = this.deviceHealthSearchTerm();
+    if (this.selectedDeviceHealthDeviceID()) params['device_id'] = this.selectedDeviceHealthDeviceID();
+
+    const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    if (queryString) url += `?${queryString}`;
+
+    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number }; at_risk_devices: AtRiskDevice[] }>(url)
       .subscribe({
         next: (res) => {
           this.deviceHealthCards.update(cards =>
