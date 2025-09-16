@@ -92,9 +92,9 @@ export interface AtRiskDevice {
         </div>
       </div>
 
-      <div class="flex flex-col gap-4 w-[1040px] h-[648px] box-border">
+      <div class="flex flex-col gap-4 w-[1200px] h-[648px] box-border">
         <div class="flex gap-4 h-[300px]">
-          <div class="w-[520px] p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
+<div class="flex-1 p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
             <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
               <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time</h2>
             </div>
