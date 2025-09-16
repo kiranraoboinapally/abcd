@@ -200,7 +200,7 @@ import * as Highcharts from 'highcharts';
             ></app-transaction-card>
             <div *ngIf="showGauge()" class="w-[380px] h-[150px] border-2  border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
               <div class="flex items-center gap-2 mb-3">
-                <h2 class="text-md font-md  m-0">At Risk %{{ selectedAtRiskDevice() ? ' (Device ' + selectedAtRiskDevice() + ')' : '' }}</h2>
+                <h2 class="text-md font-lg m-0">Batterly Level %{{ selectedAtRiskDevice() ? ' (Device ' + selectedAtRiskDevice() + ')' : '' }}</h2>
               </div>
               <highcharts-chart
                 *ngIf="selectedAtRiskDevice()"

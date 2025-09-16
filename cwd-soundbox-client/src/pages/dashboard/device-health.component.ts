@@ -43,8 +43,8 @@ export interface AtRiskDevice {
   standalone: true,
   imports: [CommonModule, HttpClientModule, HighchartsChartModule],
   template: `
-    <div class="flex flex-nowrap gap-4 p-4 bg-gray-100 min-h-[648px]">
-      <div class="w-[400px] h-[648px] bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+    <div class="flex flex-nowrap gap-2 p-1 bg-gray-100 min-h-[648px]">
+      <div class="w-[400px] h-[648px] bg-white rounded-lg shadow-md flex flex-col box-border">
         <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
           At Risk Devices
         </div>
@@ -56,7 +56,7 @@ export interface AtRiskDevice {
             </tr>
           </thead>
         </table>
-        <div class="w-full h-[420px] overflow-y-auto mt-1 border border-gray-300 rounded">
+        <div class="w-full h-[510px] overflow-y-auto mt-1 border border-gray-300 rounded">
           <table class="w-full border-collapse text-sm">
             <tbody>
               <tr *ngFor="let item of paginatedAtRiskData()" 
@@ -92,10 +92,10 @@ export interface AtRiskDevice {
         </div>
       </div>
 
-      <div class="flex flex-col gap-4 w-[1200px] h-[648px] box-border">
+      <div class="flex flex-col gap-2 w-[1200px] h-[648px] box-border">
         <div class="flex gap-4 h-[300px]">
-<div class="flex-1 p-5 bg-white rounded-lg shadow-md flex flex-col items-start">
-            <div class="w-full h-12 flex items-center pl-2 border-b border-gray-300 mb-3">
+<div class="flex-1 p-2 bg-white rounded-lg shadow-md flex flex-col items-start">
+            <div class="w-full h-12 flex items-center border-b border-gray-300 mb-3">
               <h2 class="m-0 font-bold text-2xl text-red-600">Battery Status Over Time</h2>
             </div>
             <highcharts-chart
@@ -119,7 +119,7 @@ export interface AtRiskDevice {
           </div>
         </div>
 
-        <div class="flex-1 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+        <div class="flex-1 bg-white rounded-lg shadow-md flex flex-col p-2 box-border">
           <div class="w-full h-[27px] font-bold text-lg text-gray-800 mb-2 select-none">
             All Device Health Records
           </div>
@@ -137,22 +137,23 @@ export interface AtRiskDevice {
               </tr>
             </thead>
           </table>
-          <div class="w-full flex-1 overflow-y-auto mt-1 border border-gray-300 rounded">
-            <table class="w-full border-collapse text-sm">
-              <tbody>
-                <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.block }}</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.device_id }}</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.charging_status }}</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_battery_level }}%</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_battery_level }}%</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_time }}</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_time }}</td>
-                  <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.is_anomaly }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="w-full mt-1 border border-gray-300 rounded overflow-y-auto" style="height: 192px;">
+  <table class="w-full border-collapse text-sm">
+    <tbody>
+      <tr *ngFor="let item of paginatedData()" class="h-[48px] border-b border-gray-300 hover:bg-gray-100 transition-colors">
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.block }}</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.device_id }}</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.charging_status }}</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_battery_level }}%</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_battery_level }}%</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.start_time }}</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.end_time }}</td>
+        <td class="px-4 py-3 text-left whitespace-nowrap">{{ item.is_anomaly }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
           <div class="flex justify-between items-center pt-3 border-t border-gray-300 mt-auto">
             <div class="text-sm text-gray-600 select-none">
               Showing {{ startItem() }} to {{ endItem() }} of {{ totalItems() }} items
