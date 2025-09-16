@@ -9,6 +9,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { map } from 'rxjs/operators';
 import { HighchartsChartModule } from 'highcharts-angular';
 import * as Highcharts from 'highcharts';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -322,7 +323,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   fetchDeviceIDs(): void {
-    this.http.get<{ device_ids: number[] }>('http://localhost:8080/getAllDeviceIds')
+ this.http.get<{ device_ids: number[] }>(`${environment.apiUrl}/getAllDeviceIds`)
       .pipe(
         map(res => res.device_ids.map(id => id.toString()))
       )
@@ -333,7 +334,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   fetchDeviceHealthIDs(): void {
-    this.http.get<{ device_ids: number[] }>('http://localhost:8080/getDeviceHealthIds')
+  this.http.get<{ device_ids: number[] }>(`${environment.apiUrl}/getDeviceHealthIds`)
       .pipe(
         map(res => res.device_ids.map(id => id.toString()))
       )
@@ -344,7 +345,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   fetchAtRiskKPIs(): void {
-    let url = 'http://localhost:8080/getAtRiskKPIs';
+let url = `${environment.apiUrl}/getAtRiskKPIs`;
     const params: { [key: string]: string } = {};
     if (this.deviceHealthSearchTerm()) params['search'] = this.deviceHealthSearchTerm();
     if (this.selectedDeviceHealthDeviceID()) params['device_id'] = this.selectedDeviceHealthDeviceID();
