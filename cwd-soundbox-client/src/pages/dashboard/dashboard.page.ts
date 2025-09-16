@@ -11,6 +11,9 @@ import { HighchartsChartModule } from 'highcharts-angular';
 import * as Highcharts from 'highcharts';
 import { environment } from '../../environments/environment';
 
+// Import the slider library
+import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
+
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
@@ -22,8 +25,27 @@ import { environment } from '../../environments/environment';
     FraudResultsTableComponent,
     DeviceHealthComponent,
     HttpClientModule,
-    HighchartsChartModule
+    HighchartsChartModule,
+    NgxSliderModule
   ],
+  styles: [`
+    :host ::ng-deep .ngx-slider .ngx-slider-bar {
+      background: #D1D5DB; /* Gray color for the unfilled track */
+      height: 6px;
+    }
+    :host ::ng-deep .ngx-slider .ngx-slider-selection {
+      background: #3B82F6; /* Blue color for the filled part */
+    }
+    :host ::ng-deep .ngx-slider .ngx-slider-pointer {
+      width: 18px;
+      height: 18px;
+      top: -6px; /* Center the handle on the bar */
+      background-color: #3B82F6; /* Blue color for the handle */
+    }
+    :host ::ng-deep .ngx-slider .ngx-slider-pointer:after {
+      display: none; /* Hide inner circle */
+    }
+  `],
   template: `
     <div class="absolute top-[103px] left-[250px] font-nunito font-medium text-[18px] leading-[33px] text-[#1D1D1D] select-none z-10">
       Intelligent Metrics & Analytics <span class="text-redCustom font-semibold ml-1">(Dashboard)</span>
@@ -74,12 +96,7 @@ import { environment } from '../../environments/environment';
 
       <ng-container *ngIf="activeTab() === 'Transactions Anomaly'">
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[83px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedTimeFilter()"
-            (ngModelChange)="selectedTimeFilter.set($event)"
-            aria-label="Time Filter"
-          >
+          <select class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none" [ngModel]="selectedTimeFilter()" (ngModelChange)="selectedTimeFilter.set($event)" aria-label="Time Filter">
             <option value="">Time</option>
             <option value="1h">1 Hour</option>
             <option value="1d">1 Day</option>
@@ -89,30 +106,32 @@ import { environment } from '../../environments/environment';
           </select>
         </div>
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedMlOutput()"
-            (ngModelChange)="selectedMlOutput.set($event)"
-            aria-label="ML Output Filter"
-          >
+          <select class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none" [ngModel]="selectedMlOutput()" (ngModelChange)="selectedMlOutput.set($event)" aria-label="ML Output Filter">
             <option value="">All ML Output</option>
             <option value="Review Required">Review Required</option>
             <option value="Anomaly Detected">Anomaly Detected</option>
           </select>
         </div>
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[180px]">
-          <select
-            class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none"
-            [ngModel]="selectedDeviceID()"
-            (ngModelChange)="selectedDeviceID.set($event)"
-            aria-label="Device ID Filter"
-          >
+          <select class="bg-transparent border-none text-sm text-[#414454] w-full appearance-none focus:outline-none" [ngModel]="selectedDeviceID()" (ngModelChange)="selectedDeviceID.set($event)" aria-label="Device ID Filter">
             <option value="">All Devices</option>
-            <option *ngFor="let device of deviceIDs()" [value]="device">
-              {{ device }}
-            </option>
+            <option *ngFor="let device of deviceIDs()" [value]="device">{{ device }}</option>
           </select>
         </div>
+        
+        <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[250px]">
+          <label for="confidence" class="text-sm text-[#414454] mr-2 whitespace-nowrap">Confidence:</label>
+          <div class="w-full px-2">
+            <ngx-slider
+              [options]="sliderOptions"
+              [value]="liveConfidenceThreshold()"
+              (valueChange)="liveConfidenceThreshold.set($event)"
+              (userChangeEnd)="finalConfidenceThreshold.set($event.value)">
+            </ngx-slider>
+          </div>
+          <span class="text-sm text-[#414454] w-10 text-right">{{ liveConfidenceThreshold() }}%</span>
+        </div>
+
       </ng-container>
 
       <ng-container *ngIf="activeTab() === 'Device Health'">
@@ -200,8 +219,7 @@ import { environment } from '../../environments/environment';
               [countColor]="card.countColor"
               role="listitem"
             ></app-transaction-card>
-
-                        <div class="w-[380px] h-[150px] border-2  border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
+            <div class="w-[380px] h-[150px] border-2 border-gray-400 bg-white rounded-lg shadow-md flex flex-col p-5 box-border">
               <h2 class="text-md font-lg m-0 text-gray-900">Battery Score{{ selectedAtRiskDevice() ? ' for Device ' + selectedAtRiskDevice() : '' }}</h2>
               <div class="flex-grow flex items-center justify-center">
                 <highcharts-chart
@@ -215,7 +233,6 @@ import { environment } from '../../environments/environment';
                  </ng-template>
               </div>
             </div>
-            
           </div>
           <div class="mt-4">
             <app-device-health
@@ -241,6 +258,12 @@ export class DashboardPageComponent implements OnInit {
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
   selectedDeviceID = signal('');
+  
+  // This signal tracks the slider's value in real-time for the UI.
+  liveConfidenceThreshold = signal(100);
+  // This signal is only updated when the user stops sliding and is used for filtering.
+  finalConfidenceThreshold = signal(100);
+  
   deviceIDs = signal<string[]>([]);
   selectedDeviceHealthDeviceID = signal('');
   deviceHealthDeviceIDs = signal<string[]>([]);
@@ -249,6 +272,13 @@ export class DashboardPageComponent implements OnInit {
   deviceHealthSearchTerm = signal('');
   selectedAtRiskDevice = signal<number | null>(null);
   atRiskDevices = signal<AtRiskDevice[]>([]);
+
+  // Configuration for the ngx-slider library
+  sliderOptions: Options = {
+    floor: 0,
+    ceil: 100,
+    hideLimitLabels: true
+  };
 
   transactionCards = signal([
     { heading: 'Total Transactions', icon: 'assets/icons/8.svg', count: 0, description: 'Total count of transactions done by devices.', countColor: '#2DA74E' },
@@ -274,13 +304,28 @@ export class DashboardPageComponent implements OnInit {
   Highcharts: typeof Highcharts = Highcharts;
 
   constructor(private http: HttpClient) {
-    // **FIX**: Removed the signal that was causing an infinite loop.
-    // This effect now only runs when the filters change.
+    // Effect for fetching Device Health KPIs when filters change
     effect(() => {
       this.deviceHealthSearchTerm();
       this.selectedDeviceHealthDeviceID();
       this.fetchAtRiskKPIs();
     });
+
+    // Effect to update confidence threshold on the backend when the slider value changes.
+    effect(() => {
+      // Read the signal to create a dependency.
+      const threshold = this.finalConfidenceThreshold();
+      
+      // Prepare the payload as expected by your Go backend.
+      const payload = { confidence_threshold: threshold };
+      
+      // Send the POST request.
+      this.http.post(`${this.apiUrl}/updateConfidenceThreshold`, payload)
+        .subscribe({
+          next: (response) => console.log('✅ Confidence threshold updated successfully:', response),
+          error: (err) => console.error('❌ Failed to update confidence threshold:', err)
+        });
+    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
@@ -292,10 +337,7 @@ export class DashboardPageComponent implements OnInit {
     this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getAllDeviceIds`)
       .pipe(map(res => res.device_ids.map(id => id.toString())))
       .subscribe({
-        next: (ids) => {
-          console.log("Fetched Device IDs for Transactions:", ids);
-          this.deviceIDs.set(ids);
-        },
+        next: (ids) => this.deviceIDs.set(ids),
         error: (err) => console.error('Failed to fetch transaction device IDs', err),
       });
   }
@@ -304,10 +346,7 @@ export class DashboardPageComponent implements OnInit {
     this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getDeviceHealthIds`)
       .pipe(map(res => res.device_ids.map(id => id.toString())))
       .subscribe({
-        next: (ids) => {
-          console.log("Fetched Device IDs for Health:", ids);
-          this.deviceHealthDeviceIDs.set(ids);
-        },
+        next: (ids) => this.deviceHealthDeviceIDs.set(ids),
         error: (err) => console.error('Failed to fetch device health IDs', err),
       });
   }
@@ -329,7 +368,6 @@ export class DashboardPageComponent implements OnInit {
               switch (card.heading) {
                 case 'Total Device': return { ...card, count: res.kpi.total_devices };
                 case 'At Risk': return { ...card, count: res.kpi.at_risk };
-                // **FIX**: Format the percentage to one decimal place for a cleaner look.
                 case 'At Risk %': return { ...card, count: parseFloat(res.kpi.at_risk_percent.toFixed(1)) };
                 default: return card;
               }
