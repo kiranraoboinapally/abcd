@@ -406,71 +406,72 @@ export class DashboardPageComponent implements OnInit {
 
     return {
       chart: {
-        type: 'solidgauge',
-        height: 100
+        type: "solidgauge",
+        height: 100,
       },
       title: {
-        text: ''
+        text: "",
       },
       pane: {
-        center: ['50%', '50%'],
-        size: '125%',
-        startAngle: -90,
-        endAngle: 90,
+        center: ["50%", "50%"],
+        size: "100%",
+        startAngle: -120,
+        endAngle: 120,
         background: [
           {
-            backgroundColor: '#EEE',
-            innerRadius: '60%',
-            outerRadius: '100%',
-            shape: 'arc'
-          }
-        ]
+            backgroundColor: "white",
+            innerRadius: "10%",
+            outerRadius: "110%",
+            shape: "arc",
+          },
+        ],
       },
       tooltip: {
-        enabled: false
+        enabled: false,
       },
       yAxis: {
         stops: [
-          [0.5, '#DF5353'], // red
-          [0.8, '#DDDF0D'], // yellow
-          [1.0, '#55BF3B']  // green
+          [0.5, "#DF5353"], // red
+          [0.8, "#DDDF0D"], // yellow
+          [1.0, "#55BF3B"], // green
         ],
-        lineWidth: 0,
+        lineWidth: 0.5,
         tickAmount: 2,
         min: 0,
         max: 100,
         title: {
-          text: ''
+          text: "",
         },
         labels: {
           y: 10,
           style: {
-            fontSize: '10px'
-          }
-        }
+            fontSize: "10px",
+          },
+        },
       },
       plotOptions: {
         solidgauge: {
           dataLabels: {
             y: 0,
             borderWidth: 0,
-            useHTML: true
-          }
-        }
+            useHTML: true,
+          },
+        },
       },
       series: [
         {
-          type: 'solidgauge',
-          name: 'Battery Score',
+          type: "solidgauge",
+          name: "Battery Score",
           data: [bs],
           dataLabels: {
-            format: '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>'
+            format:
+              '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>',
           },
           tooltip: {
-            valueSuffix: ' %'
-          }
-        }
-      ]
+            valueSuffix: " %",
+          },
+        },
+      ],
     };
   });
 

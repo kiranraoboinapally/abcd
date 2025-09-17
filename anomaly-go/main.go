@@ -463,9 +463,9 @@ func main() {
 		// Create the final clause for queries needing both filters and the risk condition
 		riskWhereClause := whereClause
 		if whereClause == "" {
-			riskWhereClause = " WHERE bs.device_bs < 50"
+			riskWhereClause = " WHERE bs.device_bs <= 30"
 		} else {
-			riskWhereClause += " AND bs.device_bs < 50"
+			riskWhereClause += " AND bs.device_bs <= 30"
 		}
 
 		// At risk count query (WITH FILTERS)
