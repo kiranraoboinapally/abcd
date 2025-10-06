@@ -2,8 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { environment } from '../../../src/environments/environment';
+import { environment } from '../../environments/environment'; // Adjusted path for typical project structure
 
+// INTERFACES
 interface DeviceHealth {
   block: number;
   device_id: number;
@@ -38,6 +39,7 @@ interface AtRiskKPIsResponse {
   };
   at_risk_devices: AtRiskDevice[];
 }
+
 
 @Injectable({
   providedIn: 'root'
@@ -99,7 +101,8 @@ export class ApiService {
 
     const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
     if (queryString) url += `?${queryString}`;
-
+    
+    // ✨ No more manual token or header logic needed here!
     return this.http.get<AtRiskKPIsResponse>(url);
   }
 
