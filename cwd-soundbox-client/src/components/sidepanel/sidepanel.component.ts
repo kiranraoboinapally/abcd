@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { AppStateService } from '../../shared/app-state.service';
+import { AppStateService } from '../../services/app-state.service';
 import { NgFor } from '@angular/common';
 
 @Component({

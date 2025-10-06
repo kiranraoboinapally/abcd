@@ -11,7 +11,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ApiService } from './api.service'; // Import ApiService
+import { ApiService } from '../../services/api.service'; // Import ApiService
 
 interface Transaction {
   transactionsId: string;

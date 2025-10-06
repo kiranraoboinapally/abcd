@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 import { SidePanelComponent } from '../sidepanel/sidepanel.component';
-import { DashboardPageComponent } from '../../../pages/dashboard/dashboard.page';
-import { SettingsPageComponent } from '../../../pages/settings/settings.page';
-import { AppStateService } from '../../shared/app-state.service';
+import { DashboardPageComponent } from '../../pages/dashboard/dashboard.page';
+import { SettingsPageComponent } from '../../pages/settings/settings.page';
+import { AppStateService } from '../../services/app-state.service';
 import { NgIf } from '@angular/common';
 
 @Component({

@@ -1,13 +1,13 @@
 import { Component, signal, OnInit, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TabButtonComponent } from '../../app/components/top-bar/tab-button.component';
-import { TransactionCardComponent } from '../../app/components/TransactionCardComponent';
-import { FraudResultsTableComponent } from './fraud-results-table.component';
-import { DeviceHealthComponent, AtRiskDevice } from './device-health.component';
+import { TabButtonComponent } from '../../components/tab-button/tab-button.component';
+import { TransactionCardComponent } from '../../components/TransactionCard/TransactionCardComponent';
+import { FraudResultsTableComponent } from '../../components/fraud-results-table/fraud-results-table.component';
+import { DeviceHealthComponent, AtRiskDevice } from '../../components/device-health/device-health.component';
 import { HighchartsChartModule } from 'highcharts-angular';
 import * as Highcharts from 'highcharts';
-import { ApiService } from './api.service';
+import { ApiService } from '../../services/api.service';
 import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
 
 @Component({

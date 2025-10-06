@@ -15,7 +15,7 @@ import * as Highcharts from 'highcharts';
 import HC_more from 'highcharts/highcharts-more';
 import HC_solidgauge from 'highcharts/modules/solid-gauge';
 import HC_accessibility from 'highcharts/modules/accessibility';
-import { ApiService } from './api.service'; // Import ApiService
+import { ApiService } from '../../services/api.service'; // Import ApiService
 
 HC_more(Highcharts);
 HC_solidgauge(Highcharts);
