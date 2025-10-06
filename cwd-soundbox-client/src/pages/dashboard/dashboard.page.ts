@@ -5,13 +5,9 @@ import { TabButtonComponent } from '../../app/components/top-bar/tab-button.comp
 import { TransactionCardComponent } from '../../app/components/TransactionCardComponent';
 import { FraudResultsTableComponent } from './fraud-results-table.component';
 import { DeviceHealthComponent, AtRiskDevice } from './device-health.component';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { map } from 'rxjs/operators';
 import { HighchartsChartModule } from 'highcharts-angular';
 import * as Highcharts from 'highcharts';
-import { environment } from '../../environments/environment';
-
-// Import the slider library
+import { ApiService } from './api.service';
 import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
 
 @Component({
@@ -24,26 +20,25 @@ import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
     TransactionCardComponent,
     FraudResultsTableComponent,
     DeviceHealthComponent,
-    HttpClientModule,
     HighchartsChartModule,
     NgxSliderModule
   ],
   styles: [`
     :host ::ng-deep .ngx-slider .ngx-slider-bar {
-      background: #D1D5DB; /* Gray color for the unfilled track */
+      background: #D1D5DB;
       height: 6px;
     }
     :host ::ng-deep .ngx-slider .ngx-slider-selection {
-      background: #3B82F6; /* Blue color for the filled part */
+      background: #3B82F6;
     }
     :host ::ng-deep .ngx-slider .ngx-slider-pointer {
       width: 18px;
       height: 18px;
-      top: -6px; /* Center the handle on the bar */
-      background-color: #3B82F6; /* Blue color for the handle */
+      top: -6px;
+      background-color: #3B82F6;
     }
     :host ::ng-deep .ngx-slider .ngx-slider-pointer:after {
-      display: none; /* Hide inner circle */
+      display: none;
     }
   `],
   template: `
@@ -131,7 +126,6 @@ import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
           </div>
           <span class="text-sm text-[#414454] w-10 text-right">{{ liveConfidenceThreshold() }}%</span>
         </div>
-
       </ng-container>
 
       <ng-container *ngIf="activeTab() === 'Device Health'">
@@ -253,17 +247,12 @@ import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
   `
 })
 export class DashboardPageComponent implements OnInit {
-  private apiUrl = environment.apiUrl;
   searchTerm = signal('');
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
   selectedDeviceID = signal('');
-  
-  // This signal tracks the slider's value in real-time for the UI.
   liveConfidenceThreshold = signal(100);
-  // This signal is only updated when the user stops sliding and is used for filtering.
   finalConfidenceThreshold = signal(100);
-  
   deviceIDs = signal<string[]>([]);
   selectedDeviceHealthDeviceID = signal('');
   deviceHealthDeviceIDs = signal<string[]>([]);
@@ -273,7 +262,6 @@ export class DashboardPageComponent implements OnInit {
   selectedAtRiskDevice = signal<number | null>(null);
   atRiskDevices = signal<AtRiskDevice[]>([]);
 
-  // Configuration for the ngx-slider library
   sliderOptions: Options = {
     floor: 0,
     ceil: 100,
@@ -303,24 +291,16 @@ export class DashboardPageComponent implements OnInit {
   showMoreOptions = signal(false);
   Highcharts: typeof Highcharts = Highcharts;
 
-  constructor(private http: HttpClient) {
-    // Effect for fetching Device Health KPIs when filters change
+  constructor(private apiService: ApiService) {
     effect(() => {
       this.deviceHealthSearchTerm();
       this.selectedDeviceHealthDeviceID();
       this.fetchAtRiskKPIs();
     });
 
-    // Effect to update confidence threshold on the backend when the slider value changes.
     effect(() => {
-      // Read the signal to create a dependency.
       const threshold = this.finalConfidenceThreshold();
-      
-      // Prepare the payload as expected by your Go backend.
-      const payload = { confidence_threshold: threshold };
-      
-      // Send the POST request.
-      this.http.post(`${this.apiUrl}/updateConfidenceThreshold`, payload)
+      this.apiService.updateConfidenceThreshold(threshold)
         .subscribe({
           next: (response) => console.log('✅ Confidence threshold updated successfully:', response),
           error: (err) => console.error('❌ Failed to update confidence threshold:', err)
@@ -334,33 +314,25 @@ export class DashboardPageComponent implements OnInit {
   }
 
   fetchDeviceIDs(): void {
-    this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getAllDeviceIds`)
-      .pipe(map(res => res.device_ids.map(id => id.toString())))
-      .subscribe({
-        next: (ids) => this.deviceIDs.set(ids),
-        error: (err) => console.error('Failed to fetch transaction device IDs', err),
-      });
+    this.apiService.getAllDeviceIds().subscribe({
+      next: (ids) => this.deviceIDs.set(ids),
+      error: (err) => console.error('Failed to fetch transaction device IDs', err),
+    });
   }
 
   fetchDeviceHealthIDs(): void {
-    this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getDeviceHealthIds`)
-      .pipe(map(res => res.device_ids.map(id => id.toString())))
-      .subscribe({
-        next: (ids) => this.deviceHealthDeviceIDs.set(ids),
-        error: (err) => console.error('Failed to fetch device health IDs', err),
-      });
+    this.apiService.getDeviceHealthIds().subscribe({
+      next: (ids) => this.deviceHealthDeviceIDs.set(ids),
+      error: (err) => console.error('Failed to fetch device health IDs', err),
+    });
   }
 
   fetchAtRiskKPIs(): void {
-    let url = `${this.apiUrl}/getAtRiskKPIs`;
     const params: { [key: string]: string } = {};
     if (this.deviceHealthSearchTerm()) params['search'] = this.deviceHealthSearchTerm();
     if (this.selectedDeviceHealthDeviceID()) params['device_id'] = this.selectedDeviceHealthDeviceID();
 
-    const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
-    if (queryString) url += `?${queryString}`;
-
-    this.http.get<{ kpi: { total_devices: number; at_risk: number; at_risk_percent: number }; at_risk_devices: AtRiskDevice[] }>(url)
+    this.apiService.getAtRiskKPIsFull(params)
       .subscribe({
         next: (res) => {
           this.deviceHealthCards.update(cards =>
@@ -406,72 +378,71 @@ export class DashboardPageComponent implements OnInit {
 
     return {
       chart: {
-        type: "solidgauge",
-        height: 100,
+        type: 'solidgauge',
+        height: 100
       },
       title: {
-        text: "",
+        text: ''
       },
       pane: {
-        center: ["50%", "50%"],
-        size: "100%",
-        startAngle: -120,
-        endAngle: 120,
+        center: ['50%', '50%'],
+        size: '125%',
+        startAngle: -90,
+        endAngle: 90,
         background: [
           {
-            backgroundColor: "white",
-            innerRadius: "10%",
-            outerRadius: "110%",
-            shape: "arc",
-          },
-        ],
+            backgroundColor: '#EEE',
+            innerRadius: '60%',
+            outerRadius: '100%',
+            shape: 'arc'
+          }
+        ]
       },
       tooltip: {
-        enabled: false,
+        enabled: false
       },
       yAxis: {
         stops: [
-          [0.5, "#DF5353"], // red
-          [0.8, "#DDDF0D"], // yellow
-          [1.0, "#55BF3B"], // green
+          [0.5, '#DF5353'], // red
+          [0.8, '#DDDF0D'], // yellow
+          [1.0, '#55BF3B']  // green
         ],
-        lineWidth: 0.5,
+        lineWidth: 0,
         tickAmount: 2,
         min: 0,
         max: 100,
         title: {
-          text: "",
+          text: ''
         },
         labels: {
           y: 10,
           style: {
-            fontSize: "10px",
-          },
-        },
+            fontSize: '10px'
+          }
+        }
       },
       plotOptions: {
         solidgauge: {
           dataLabels: {
             y: 0,
             borderWidth: 0,
-            useHTML: true,
-          },
-        },
+            useHTML: true
+          }
+        }
       },
       series: [
         {
-          type: "solidgauge",
-          name: "Battery Score",
+          type: 'solidgauge',
+          name: 'Battery Score',
           data: [bs],
           dataLabels: {
-            format:
-              '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>',
+            format: '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>'
           },
           tooltip: {
-            valueSuffix: " %",
-          },
-        },
-      ],
+            valueSuffix: ' %'
+          }
+        }
+      ]
     };
   });
 

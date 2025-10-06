@@ -1,4 +1,3 @@
-
 import {
   Component,
   signal,
@@ -12,8 +11,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { environment } from '../../../src/environments/environment';
+import { ApiService } from './api.service'; // Import ApiService
 
 interface Transaction {
   transactionsId: string;
@@ -28,7 +26,7 @@ interface Transaction {
 @Component({
   selector: 'app-fraud-results-table',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule], // Removed HttpClientModule
   template: `
     <div class="w-auto h-[527px] p-4 box-border bg-white border border-gray-300 rounded-lg flex flex-col font-sans select-none">
   <div class="flex items-center mb-3">
@@ -87,8 +85,6 @@ interface Transaction {
     />
   </button>
 </ng-container>
-
-
             </ng-container>
             <ng-template #showReviewText>
               <ng-container *ngIf="row.review !== 'No'">
@@ -160,7 +156,7 @@ interface Transaction {
 `
 })
 export class FraudResultsTableComponent implements OnInit, OnDestroy {
-  private readonly http = inject(HttpClient);
+  private readonly apiService = inject(ApiService); // Use ApiService instead of HttpClient
 
   private readonly mlFilterSignal = signal<string>('');
   private readonly timeFilterSignal = signal<string>('');
@@ -183,7 +179,7 @@ export class FraudResultsTableComponent implements OnInit, OnDestroy {
 
   @Output() statsChanged = new EventEmitter<{
     total: number;
-  anomaly: number;
+    anomaly: number;
     review: number;
   }>();
 
@@ -194,22 +190,21 @@ export class FraudResultsTableComponent implements OnInit, OnDestroy {
 
   private dataFetchEffect?: any;
 
-constructor() {
-  this.dataFetchEffect = effect(() => {
-    this.mlFilterSignal();
-    this.timeFilterSignal();
-    this.searchTermSignal();
-    this.deviceFilterSignal();
-    this.currentPage.set(1);
-    this.expandedRow.set(null);
-this.fetchData();
-  });
-}
+  constructor() {
+    this.dataFetchEffect = effect(() => {
+      this.mlFilterSignal();
+      this.timeFilterSignal();
+      this.searchTermSignal();
+      this.deviceFilterSignal();
+      this.currentPage.set(1);
+      this.expandedRow.set(null);
+      this.fetchData();
+    });
+  }
 
-ngOnInit() {
-  this.fetchData();
-}
-
+  ngOnInit() {
+    this.fetchData();
+  }
 
   ngOnDestroy(): void {
     if (this.dataFetchEffect) {
@@ -225,82 +220,59 @@ ngOnInit() {
     this.expandedRow.set(this.expandedRow() === id ? null : id);
   }
 
- private fetchData() {
-  const params: any = {};
-  if (this.timeFilterSignal()) params.time = this.timeFilterSignal();
+  private fetchData() {
+    const params: { [key: string]: string } = {};
+    if (this.timeFilterSignal()) params['time'] = this.timeFilterSignal();
+    if (this.mlFilterSignal() === 'anomaly detected') {
+      params['anomaly_check'] = 'Yes';
+    }
+    if (this.deviceFilterSignal()) params['device_id'] = this.deviceFilterSignal();
+    if (this.searchTermSignal()) params['search'] = this.searchTermSignal();
 
-  const mlFilter = this.mlFilterSignal();
-
-  if (mlFilter === 'anomaly detected') {
-    // Backend expects 'Yes' to filter anomaly detected
-    params.anomaly_check = 'Yes';
-  } else if (mlFilter === 'review required') {
-    // Backend has no filter for review required,
-    // So do NOT send anomaly_check param, fetch all data and filter on frontend
-  } else if (mlFilter) {
-    // For other filters (or empty), no filtering on backend
+    this.apiService.getTransactionData(params).subscribe({
+      next: (mappedData) => {
+        this._allData.set(mappedData);
+        this.emitStats();
+      },
+      error: (err) => {
+        console.error('Error fetching data:', err);
+        this._allData.set([]);
+        this.emitStats();
+      },
+    });
   }
 
-  if (this.deviceFilterSignal()) params.device_id = this.deviceFilterSignal();
-  if (this.searchTermSignal()) params.search = this.searchTermSignal();
-
-  this.http.get<any>(`${environment.apiUrl}/fetchData`, { params }).subscribe({
-    next: (response) => {
-      const mappedData = response.transactions.map((t: any) => ({
-        transactionsId: t.transaction_id,
-        deviceID: t.device_id,
-        amount: t.transaction_amt,
-        mlOutput: t.anomaly_check, // exactly backend value
-        confidence: Number(t.confidence_score).toFixed(2),
-        timeStamp: t.transaction_timestamp,
-        review: t.review == null ? '' : t.review,
-      }));
-      this._allData.set(mappedData);
-      this.emitStats();
-    },
-    error: (err) => {
-      console.error('Error fetching data:', err);
-      this._allData.set([]);
-      this.emitStats();
-    },
-  });
-}
-
-
-readonly totalItems = computed(() => this.filteredData().length);
+  readonly totalItems = computed(() => this.filteredData().length);
 
   readonly totalPages = computed(() => Math.ceil(this.totalItems() / this.pageSize));
-readonly paginatedData = computed(() => {
-  const start = (this.currentPage() - 1) * this.pageSize;
-  return this.filteredData().slice(start, start + this.pageSize);
-});
+  readonly paginatedData = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.filteredData().slice(start, start + this.pageSize);
+  });
 
+  readonly filteredData = computed(() => {
+    const all = this._allData();
+    const filter = this.mlFilterSignal().toLowerCase();
 
-readonly filteredData = computed(() => {
-  const all = this._allData();
-  const filter = this.mlFilterSignal().toLowerCase();
+    if (filter === 'anomaly detected') {
+      // Show only rows where anomaly detected === yes
+      return all.filter(row => row.mlOutput.toLowerCase() === 'yes');
+    }
 
-  if (filter === 'anomaly detected') {
-    // Show only rows where anomaly detected === yes
-    return all.filter(row => row.mlOutput.toLowerCase() === 'yes');
-  }
+    if (filter === 'review required') {
+      // Show only anomaly detected rows with empty review
+      return all.filter(
+        row => row.mlOutput.toLowerCase() === 'yes' && (!row.review || row.review.trim() === '')
+      );
+    }
 
-  if (filter === 'review required') {
-    // Show only anomaly detected rows with empty review
-    return all.filter(
-      row => row.mlOutput.toLowerCase() === 'yes' && (!row.review || row.review.trim() === '')
-    );
-  }
+    // For any other filter, show all rows
+    return all;
+  });
 
-  // For any other filter, show all rows
-  return all;
-});
-
-
-readonly reviewCount = computed(() =>
-  this._allData().filter(d => d.mlOutput === 'Yes' && (!d.review || d.review === '')).length
-);
-
+  readonly reviewCount = computed(() =>
+    this._allData().filter(d => d.mlOutput === 'Yes' && (!d.review || d.review === '')).length
+  );
 
   readonly startItem = computed(() =>
     this.totalItems() === 0 ? 0 : (this.currentPage() - 1) * this.pageSize + 1
@@ -322,38 +294,33 @@ readonly reviewCount = computed(() =>
   }
 
   submitReview(transactionId: string, reviewValue: 'Yes' | 'No') {
-    this.http
-      .post(`${environment.apiUrl}/updateReview`, {
-        transaction_id: transactionId,
-        review: reviewValue,
-      })
-      .subscribe({
-        next: () => {
-          const updatedData = this._allData().map((item) => {
-            if (item.transactionsId === transactionId) {
-              return { ...item, review: reviewValue };
-            }
-            return item;
-          });
-          this._allData.set(updatedData);
-          this.successMessage.set(`Review for ${transactionId} updated successfully.`);
-          setTimeout(() => this.successMessage.set(null), 3000);
-          this.expandedRow.set(null);
-          this.emitStats();
-        },
-        error: (err) => {
-          console.error('Error updating review:', err);
-        },
-      });
+    this.apiService.updateReview(transactionId, reviewValue).subscribe({
+      next: () => {
+        const updatedData = this._allData().map((item) => {
+          if (item.transactionsId === transactionId) {
+            return { ...item, review: reviewValue };
+          }
+          return item;
+        });
+        this._allData.set(updatedData);
+        this.successMessage.set(`Review for ${transactionId} updated successfully.`);
+        setTimeout(() => this.successMessage.set(null), 3000);
+        this.expandedRow.set(null);
+        this.emitStats();
+      },
+      error: (err) => {
+        console.error('Error updating review:', err);
+      },
+    });
   }
 
-private emitStats() {
-  const anomalyCount = this._allData().filter(d => d.mlOutput === 'Yes').length;
+  private emitStats() {
+    const anomalyCount = this._allData().filter(d => d.mlOutput === 'Yes').length;
 
-  this.statsChanged.emit({
-    total: this.totalItems(),
-    anomaly: anomalyCount,
-    review: this.reviewCount(),
-  });
-}
+    this.statsChanged.emit({
+      total: this.totalItems(),
+      anomaly: anomalyCount,
+      review: this.reviewCount(),
+    });
+  }
 }
