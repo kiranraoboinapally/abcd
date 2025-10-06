@@ -25,6 +25,69 @@ abcd/
 └── README.md               # Project Documentation (this file)
 ```
 
+
+
+```
+frontend new
+src/
+│
+├── main.ts
+├── app.ts
+│
+├── components/
+│   ├── layout/
+│   │   └── layout.component.ts
+│   ├── tab-button/
+│   │   └── tab-button.component.ts
+│   ├── top-bar/
+│   │   └── top-bar.component.ts
+│   ├── sidepanel/
+│   │   └── sidepanel.component.ts
+│   ├── TransactionCard/
+│   │   └── TransactionCardComponent.ts
+│   ├── device-health/
+│   │   └── device-health.component.ts
+│   └── fraud-results-table/
+│       └── fraud-results-table.component.ts
+│
+├── pages/
+│   ├── dashboard/
+│   │   └── dashboard.page.ts
+│   └── settings/
+│       └── settings.page.ts
+│
+├── services/
+│   ├── api.service.ts
+│   ├── auth.interceptor.ts
+│   └── app-state.service.ts
+
+
+```
+
+```
+backend new
+anomaly-go
+├── cmd/
+│   └── api/
+│       └── main.go
+├── internal/
+│   ├── api/
+│   │   ├── handlers.go
+│   │   └── routes.go
+│   ├── auth/
+│   │   └── jwt.go
+│   ├── config/
+│   │   └── config.go
+│   ├── database/
+│   │   └── database.go
+│   └── models/
+│       └── models.go
+├── .env
+└── go.mod
+
+->to run  go run ./cmd/api/main.go
+```
+
 ---
 
 ##  Frontend Setup (Angular)
