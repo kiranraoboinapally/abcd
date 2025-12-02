@@ -1,1 +1,3 @@
 logs/
+DB_COMM.env
+REST.env
