@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"anomaly-go/config/readenv"
-	"anomaly-go/controller" // <-- IMPORT the controller package
+	"anomaly-go/controller"
 	"anomaly-go/initializer"
 	"anomaly-go/log"
 	"anomaly-go/router"

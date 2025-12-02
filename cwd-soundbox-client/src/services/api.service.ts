@@ -2,9 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { environment } from '../environments/environment'; // Adjusted path for typical project structure
+import { environment } from '../environments/environment'; // Adjust path if needed
 
-// INTERFACES
+// ----------------- INTERFACES -----------------
 interface DeviceHealth {
   block: number;
   device_id: number;
@@ -40,7 +40,7 @@ interface AtRiskKPIsResponse {
   at_risk_devices: AtRiskDevice[];
 }
 
-
+// ----------------- SERVICE -----------------
 @Injectable({
   providedIn: 'root'
 })
@@ -49,6 +49,7 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
+  // --------- Device Health ---------
   getDeviceHealthData(filters: {
     search?: string;
     device_id?: string;
@@ -63,49 +64,53 @@ export class ApiService {
     if (filters.charging_status) params['charging_status'] = filters.charging_status;
     if (filters.is_anomaly) params['is_anomaly'] = filters.is_anomaly;
 
-    const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    const queryString = Object.keys(params)
+      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&');
     if (queryString) url += `?${queryString}`;
 
-    return this.http.get<{ battery_health: DeviceHealth[] }>(url).pipe(
-      map(response => response.battery_health || [])
+    return this.http.get<{ data?: { battery_health?: DeviceHealth[] } }>(url).pipe(
+      map(response => response.data?.battery_health ?? [])
     );
   }
 
-  getAtRiskKPIs(filters: {
-    search?: string;
-    device_id?: string;
-  } = {}): Observable<AtRiskDevice[]> {
+  // --------- At Risk KPIs (Devices Only) ---------
+  getAtRiskKPIs(filters: { search?: string; device_id?: string } = {}): Observable<AtRiskDevice[]> {
     let url = `${this.apiUrl}/getAtRiskKPIs`;
     const params: { [key: string]: string } = {};
 
     if (filters.search) params['search'] = filters.search;
     if (filters.device_id) params['device_id'] = filters.device_id;
 
-    const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    const queryString = Object.keys(params)
+      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&');
     if (queryString) url += `?${queryString}`;
 
-    return this.http.get<{ kpi: any; at_risk_devices: AtRiskDevice[] }>(url).pipe(
-      map(response => response.at_risk_devices || [])
+    return this.http.get<{ data?: AtRiskKPIsResponse }>(url).pipe(
+      map(response => response.data?.at_risk_devices ?? [])
     );
   }
 
-  getAtRiskKPIsFull(filters: {
-    search?: string;
-    device_id?: string;
-  } = {}): Observable<AtRiskKPIsResponse> {
+  // --------- At Risk KPIs Full Response ---------
+  getAtRiskKPIsFull(filters: { search?: string; device_id?: string } = {}): Observable<AtRiskKPIsResponse> {
     let url = `${this.apiUrl}/getAtRiskKPIs`;
     const params: { [key: string]: string } = {};
 
     if (filters.search) params['search'] = filters.search;
     if (filters.device_id) params['device_id'] = filters.device_id;
 
-    const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    const queryString = Object.keys(params)
+      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&');
     if (queryString) url += `?${queryString}`;
-    
-    // ✨ No more manual token or header logic needed here!
-    return this.http.get<AtRiskKPIsResponse>(url);
+
+    return this.http.get<{ data?: AtRiskKPIsResponse }>(url).pipe(
+      map(response => response.data ?? { kpi: { total_devices: 0, at_risk: 0, at_risk_percent: 0 }, at_risk_devices: [] })
+    );
   }
 
+  // --------- Transactions ---------
   getTransactionData(filters: {
     time?: string;
     anomaly_check?: string;
@@ -120,18 +125,20 @@ export class ApiService {
     if (filters.device_id) params['device_id'] = filters.device_id;
     if (filters.search) params['search'] = filters.search;
 
-    const queryString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
+    const queryString = Object.keys(params)
+      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&');
     if (queryString) url += `?${queryString}`;
 
-    return this.http.get<{ transactions: any[] }>(url).pipe(
-      map(response => response.transactions.map(t => ({
+    return this.http.get<{ data?: { transactions?: any[] } }>(url).pipe(
+      map(response => (response.data?.transactions ?? []).map(t => ({
         transactionsId: t.transaction_id,
         deviceID: t.device_id,
-        amount: t.transaction_amt,
+        amount: t.transaction_amount,
         mlOutput: t.anomaly_check,
-        confidence: Number(t.confidence_score).toFixed(2),
-        timeStamp: t.transaction_timestamp,
-        review: t.review == null ? '' : t.review
+        confidence: Number(t.confidence_score || 0).toFixed(2),
+        timeStamp: t.transaction_time,
+        review: t.review ?? ''
       })))
     );
   }
@@ -143,18 +150,20 @@ export class ApiService {
     });
   }
 
+  // --------- Device IDs ---------
   getAllDeviceIds(): Observable<string[]> {
-    return this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getAllDeviceIds`).pipe(
-      map(res => res.device_ids.map(id => id.toString()))
+    return this.http.get<{ data?: { device_ids: number[] } }>(`${this.apiUrl}/getAllDeviceIds`).pipe(
+      map(res => res.data?.device_ids.map(id => id.toString()) ?? [])
     );
   }
 
   getDeviceHealthIds(): Observable<string[]> {
-    return this.http.get<{ device_ids: number[] }>(`${this.apiUrl}/getDeviceHealthIds`).pipe(
-      map(res => res.device_ids.map(id => id.toString()))
+    return this.http.get<{ data?: { device_ids: number[] } }>(`${this.apiUrl}/getDeviceHealthIds`).pipe(
+      map(res => res.data?.device_ids.map(id => id.toString()) ?? [])
     );
   }
 
+  // --------- Update Confidence Threshold ---------
   updateConfidenceThreshold(threshold: number): Observable<any> {
     const payload = { confidence_threshold: threshold };
     return this.http.post(`${this.apiUrl}/updateConfidenceThreshold`, payload);
