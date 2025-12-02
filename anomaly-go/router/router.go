@@ -47,6 +47,7 @@ func SetupRouter(api *controller.API, jwtSecret string) *gin.Engine {
 	protected := r.Group("/").
 		Use(auth.JWTMiddleware(jwtSecret))
 	{
+		protected.GET("/getConfidenceThreshold", api.GetConfidenceThresholdHandler)
 		protected.POST("/updateConfidenceThreshold", api.UpdateConfidenceThresholdHandler)
 		protected.GET("/fetchData", api.FetchDataHandler)
 		protected.GET("/getAllDeviceIds", api.GetAllDeviceIdsHandler)

@@ -19,6 +19,23 @@ type Repository struct {
 func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{DB: db}
 }
+func (r *Repository) GetConfidenceThreshold() (float64, bool, error) {
+	var threshold model.Threshold
+
+	// Attempt to find the first record. Since we're assuming a single threshold,
+	// using First() is appropriate.
+	err := r.DB.First(&threshold).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// No record found, return default or handle as not found
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+
+	return threshold.ThresholdValue, true, nil
+}
 
 // UpdateConfidenceThreshold updates the confidence threshold.
 func (r *Repository) UpdateConfidenceThreshold(threshold int) (int64, error) {
@@ -41,9 +58,9 @@ func (r *Repository) FetchTransactions(timeFilter, anomalyCheck, deviceID, searc
 
 // CountTransactionMetrics counts anomaly metrics based on filters.
 type metricsResult struct {
-	TotalReviewRequired  int
-	TotalAnomalyDetected int
-	TotalFraud           int
+	TotalReviewRequired   int
+	TotalAnomalyDetected  int
+	TotalFraud            int
 	TotalNullAnomalyCheck int
 }
 
@@ -161,7 +178,6 @@ func (r *Repository) GetAtRiskKPIs(deviceIDStr, searchTerm string) (int, []model
 
 	return int(totalDevices), devices, nil
 }
-
 
 // --- Helper Functions ---
 

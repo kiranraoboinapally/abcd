@@ -58,6 +58,18 @@ func (a *API) LoginHandler(c *gin.Context) {
 	// UPDATED: Use the new HandleSuccess function
 	response.HandleSuccess(c, http.StatusOK, gin.H{"message": "Login successful", "token": token})
 }
+func (a *API) GetConfidenceThresholdHandler(c *gin.Context) {
+	threshold, err := a.Service.GetConfidenceThreshold()
+	if err != nil {
+		log.WriteLog.Error("Failed to fetch confidence threshold", zap.Error(err))
+		// The service function now returns a 404-like error if not found.
+		response.HandleError(c, err)
+		return
+	}
+
+	log.WriteLog.Info("Confidence threshold fetched", zap.Float64("threshold", threshold))
+	response.HandleSuccess(c, http.StatusOK, gin.H{"confidence_threshold": threshold})
+}
 
 // UpdateConfidenceThresholdHandler updates the confidence threshold.
 func (a *API) UpdateConfidenceThresholdHandler(c *gin.Context) {

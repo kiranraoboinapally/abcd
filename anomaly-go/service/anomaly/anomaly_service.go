@@ -35,6 +35,18 @@ func (s *Service) GenerateToken(username string) (string, error) {
 	}
 	return token, nil
 }
+func (s *Service) GetConfidenceThreshold() (float64, error) {
+	threshold, found, err := s.Repo.GetConfidenceThreshold()
+	if err != nil {
+		return 0, fmt.Errorf("500:database error on fetch threshold: %w", err)
+	}
+	if !found {
+		// As requested, if no record is found, we should reflect that to the user.
+		// Using a 404-like domain error here to indicate absence.
+		return 0, fmt.Errorf("404:confidence threshold not set in database")
+	}
+	return threshold, nil
+}
 
 // UpdateConfidenceThreshold updates the confidence threshold.
 func (s *Service) UpdateConfidenceThreshold(threshold int) (int64, error) {
