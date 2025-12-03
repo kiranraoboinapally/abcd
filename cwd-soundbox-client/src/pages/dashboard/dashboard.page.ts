@@ -23,7 +23,7 @@ import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
     HighchartsChartModule,
     NgxSliderModule
   ],
-  styles: [`
+styles: [`
     :host ::ng-deep .ngx-slider .ngx-slider-bar {
       background: #D1D5DB;
       height: 6px;
@@ -115,15 +115,15 @@ import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
         </div>
         
         <div class="bg-[#F5F7FA] rounded-xl h-10 flex items-center px-3 w-[250px]">
-          <label for="confidence" class="text-sm text-[#414454] mr-2 whitespace-nowrap">Confidence:</label>
-          <div class="w-full px-2">
-            <ngx-slider
-              [options]="sliderOptions"
-              [value]="liveConfidenceThreshold()"
-              (valueChange)="liveConfidenceThreshold.set($event)"
-              (userChangeEnd)="finalConfidenceThreshold.set($event.value)">
-            </ngx-slider>
-          </div>
+<label class="text-sm text-[#414454] mr-2 whitespace-nowrap">Confidence:</label>
+<ngx-slider
+  [options]="sliderOptions"
+  [value]="liveConfidenceThreshold() ?? 50"
+  aria-label="Confidence threshold"
+  (valueChange)="liveConfidenceThreshold.set($event)"
+  (userChangeEnd)="onConfidenceSliderChange($event.value)">
+</ngx-slider>
+
           <span class="text-sm text-[#414454] w-10 text-right">{{ liveConfidenceThreshold() }}%</span>
         </div>
       </ng-container>
@@ -247,26 +247,27 @@ import { NgxSliderModule, Options } from '@angular-slider/ngx-slider';
   `
 })
 export class DashboardPageComponent implements OnInit {
+  activeTab = signal('Transactions Anomaly');
+  showMoreOptions = signal(false);
+
   searchTerm = signal('');
   selectedTimeFilter = signal('');
   selectedMlOutput = signal('');
   selectedDeviceID = signal('');
-  liveConfidenceThreshold = signal(100);
-  finalConfidenceThreshold = signal(100);
-  deviceIDs = signal<string[]>([]);
+
+  deviceHealthSearchTerm = signal('');
   selectedDeviceHealthDeviceID = signal('');
-  deviceHealthDeviceIDs = signal<string[]>([]);
   selectedChargingStatus = signal('');
   selectedDeviceHealthStatus = signal('');
-  deviceHealthSearchTerm = signal('');
   selectedAtRiskDevice = signal<number | null>(null);
-  atRiskDevices = signal<AtRiskDevice[]>([]);
 
-  sliderOptions: Options = {
-    floor: 0,
-    ceil: 100,
-    hideLimitLabels: true
-  };
+  // ======= Confidence Slider =======
+  liveConfidenceThreshold = signal<number | null>(null); // null until API fetch
+  finalConfidenceThreshold = signal<number | null>(null);
+
+  deviceIDs = signal<string[]>([]);
+  deviceHealthDeviceIDs = signal<string[]>([]);
+  atRiskDevices = signal<AtRiskDevice[]>([]);
 
   transactionCards = signal([
     { heading: 'Total Transactions', icon: 'assets/icons/8.svg', count: 0, description: 'Total count of transactions done by devices.', countColor: '#2DA74E' },
@@ -287,43 +288,48 @@ export class DashboardPageComponent implements OnInit {
     { label: 'Merchant Churn', icon: 'assets/icons/4.svg' },
     { label: 'Merchant LTV', icon: 'assets/icons/5.svg' },
   ];
-  activeTab = signal(this.tabs[0].label);
-  showMoreOptions = signal(false);
+
   Highcharts: typeof Highcharts = Highcharts;
 
+  sliderOptions: Options = { floor: 0, ceil: 100, hideLimitLabels: true };
+
   constructor(private apiService: ApiService) {
+    // Fetch KPIs whenever device health filters change
     effect(() => {
       this.deviceHealthSearchTerm();
       this.selectedDeviceHealthDeviceID();
       this.fetchAtRiskKPIs();
     });
-
-    effect(() => {
-      const threshold = this.finalConfidenceThreshold();
-      this.apiService.updateConfidenceThreshold(threshold)
-        .subscribe({
-          next: (response) => console.log('✅ Confidence threshold updated successfully:', response),
-          error: (err) => console.error('❌ Failed to update confidence threshold:', err)
-        });
-    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
+    this.fetchConfidenceThreshold(); // fetch from API
     this.fetchDeviceIDs();
     this.fetchDeviceHealthIDs();
   }
 
+  /** ==================== API Methods ==================== */
+fetchConfidenceThreshold(): void {
+  this.apiService.getConfidenceThreshold().subscribe({
+    next: (res) => {
+      const val = res.data?.confidence_threshold ?? 50; // correctly read from res.data
+      this.liveConfidenceThreshold.set(val);
+      this.finalConfidenceThreshold.set(val);
+    },
+    error: (err) => console.error('Failed to fetch confidence threshold. Using default 50.', err)
+  });
+}
   fetchDeviceIDs(): void {
     this.apiService.getAllDeviceIds().subscribe({
       next: (ids) => this.deviceIDs.set(ids),
-      error: (err) => console.error('Failed to fetch transaction device IDs', err),
+      error: (err) => console.error('Failed to fetch transaction device IDs', err)
     });
   }
 
   fetchDeviceHealthIDs(): void {
     this.apiService.getDeviceHealthIds().subscribe({
       next: (ids) => this.deviceHealthDeviceIDs.set(ids),
-      error: (err) => console.error('Failed to fetch device health IDs', err),
+      error: (err) => console.error('Failed to fetch device health IDs', err)
     });
   }
 
@@ -332,29 +338,43 @@ export class DashboardPageComponent implements OnInit {
     if (this.deviceHealthSearchTerm()) params['search'] = this.deviceHealthSearchTerm();
     if (this.selectedDeviceHealthDeviceID()) params['device_id'] = this.selectedDeviceHealthDeviceID();
 
-    this.apiService.getAtRiskKPIsFull(params)
-      .subscribe({
-        next: (res) => {
-          this.deviceHealthCards.update(cards =>
-            cards.map(card => {
-              switch (card.heading) {
-                case 'Total Device': return { ...card, count: res.kpi.total_devices };
-                case 'At Risk': return { ...card, count: res.kpi.at_risk };
-                case 'At Risk %': return { ...card, count: parseFloat(res.kpi.at_risk_percent.toFixed(1)) };
-                default: return card;
-              }
-            })
-          );
-          this.atRiskDevices.set(res.at_risk_devices || []);
-        },
-        error: (err) => console.error('Failed to fetch at risk KPIs', err),
-      });
+    this.apiService.getAtRiskKPIsFull(params).subscribe({
+      next: (res) => {
+        this.deviceHealthCards.update(cards =>
+          cards.map(card => {
+            switch (card.heading) {
+              case 'Total Device': return { ...card, count: res.kpi.total_devices };
+              case 'At Risk': return { ...card, count: res.kpi.at_risk };
+              case 'At Risk %': return { ...card, count: parseFloat(res.kpi.at_risk_percent.toFixed(1)) };
+              default: return card;
+            }
+          })
+        );
+        this.atRiskDevices.set(res.at_risk_devices || []);
+      },
+      error: (err) => console.error('Failed to fetch at risk KPIs', err)
+    });
   }
-  
+
+  /** ==================== Event Handlers ==================== */
+  onConfidenceSliderChange(value: number): void {
+    this.finalConfidenceThreshold.set(value);
+
+    if (value === 0) {
+      console.warn('Update to 0 prevented. Threshold must be greater than 0.');
+      return;
+    }
+
+    this.apiService.updateConfidenceThreshold(value).subscribe({
+      next: res => console.log('✅ Confidence threshold updated:', res),
+      error: err => console.error('❌ Failed to update confidence threshold:', err)
+    });
+  }
+
   onDeviceSelected(deviceId: number | null): void {
     this.selectedAtRiskDevice.set(deviceId);
   }
-  
+
   onStatsChanged(stats: { total: number; anomaly: number; review: number }): void {
     this.transactionCards.update(cards =>
       cards.map(card => {
@@ -367,82 +387,48 @@ export class DashboardPageComponent implements OnInit {
       })
     );
   }
-  
+
   onMoreOptions(): void {
     this.showMoreOptions.update(value => !value);
   }
 
+  /** ==================== Computed Options ==================== */
   gaugeOptions = computed((): Highcharts.Options => {
     const deviceId = this.selectedAtRiskDevice();
-    const bs = this.atRiskDevices().find(item => item.device_id === deviceId)?.device_bs || 0;
+    const bs = this.atRiskDevices().find(d => d.device_id === deviceId)?.device_bs ?? 0;
 
     return {
-      chart: {
-        type: 'solidgauge',
-        height: 100
-      },
-      title: {
-        text: ''
-      },
+      chart: { type: 'solidgauge', height: 100 },
+      title: { text: '' },
       pane: {
         center: ['50%', '50%'],
         size: '125%',
         startAngle: -90,
         endAngle: 90,
-        background: [
-          {
-            backgroundColor: '#EEE',
-            innerRadius: '60%',
-            outerRadius: '100%',
-            shape: 'arc'
-          }
-        ]
+        background: [{ backgroundColor: '#EEE', innerRadius: '60%', outerRadius: '100%', shape: 'arc' }]
       },
-      tooltip: {
-        enabled: false
-      },
+      tooltip: { enabled: false },
       yAxis: {
         stops: [
-          [0.5, '#DF5353'], // red
-          [0.8, '#DDDF0D'], // yellow
-          [1.0, '#55BF3B']  // green
+          [0.5, '#DF5353'],
+          [0.8, '#DDDF0D'],
+          [1.0, '#55BF3B']
         ],
         lineWidth: 0,
         tickAmount: 2,
         min: 0,
         max: 100,
-        title: {
-          text: ''
-        },
-        labels: {
-          y: 10,
-          style: {
-            fontSize: '10px'
-          }
-        }
+        labels: { y: 10, style: { fontSize: '10px' } }
       },
-      plotOptions: {
-        solidgauge: {
-          dataLabels: {
-            y: 0,
-            borderWidth: 0,
-            useHTML: true
-          }
+      plotOptions: { solidgauge: { dataLabels: { y: 0, borderWidth: 0, useHTML: true } } },
+      series: [{
+        type: 'solidgauge',
+        name: 'Battery Score',
+        data: [bs],
+        dataLabels: {
+          format: '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>'
         }
-      },
-      series: [
-        {
-          type: 'solidgauge',
-          name: 'Battery Score',
-          data: [bs],
-          dataLabels: {
-            format: '<div style="text-align:center"><span style="font-size:16px">{y:.1f}</span><br/><span style="font-size:8px;opacity:0.4">%</span></div>'
-          },
-          tooltip: {
-            valueSuffix: ' %'
-          }
-        }
-      ]
+      }]
     };
   });
 

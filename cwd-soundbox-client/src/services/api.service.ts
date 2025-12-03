@@ -162,7 +162,11 @@ export class ApiService {
       map(res => res.data?.device_ids.map(id => id.toString()) ?? [])
     );
   }
-
+getConfidenceThreshold(): Observable<{ data: { confidence_threshold: number }, status: string }> {
+  return this.http.get<{ data: { confidence_threshold: number }, status: string }>(
+    `${environment.apiUrl}/getConfidenceThreshold`
+  );
+}
   // --------- Update Confidence Threshold ---------
   updateConfidenceThreshold(threshold: number): Observable<any> {
     const payload = { confidence_threshold: threshold };
