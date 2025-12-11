@@ -228,3 +228,15 @@ CREATE TABLE public.bl_score (
 | Database  | PostgreSQL  | `5432` |
 
 ---
+
+
+
+fisrt run backend go run main.go
+1.In postMan send request as Post localhost:8080/login
+
+2.Body raw JSON  
+{
+  "username": "admin",
+  "password": "password"
+}
+3.Get that Token and paste it in frontend auth.interceptor.ts at your_token_key where const token gave it over there
